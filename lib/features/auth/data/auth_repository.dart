@@ -24,6 +24,13 @@ class AuthRepository {
     );
   }
 
+  /// Sign in anonymously — no OAuth required.
+  /// Safe to call repeatedly: skips if already signed in.
+  Future<void> signInAnonymously() async {
+    if (isSignedIn) return;
+    await _client.auth.signInAnonymously();
+  }
+
   Future<void> signOut() async {
     await _client.auth.signOut();
   }

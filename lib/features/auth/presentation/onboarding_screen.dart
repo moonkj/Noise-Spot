@@ -7,8 +7,9 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/services/supabase_service.dart';
 import '../data/auth_repository.dart';
 import 'widgets/wave_to_spot_painter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Splash screen: waits for Supabase to initialise, then auto-signs-in
+/// anonymously and navigates to the map. Animation plays while waiting.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -18,8 +19,10 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     with SingleTickerProviderStateMixin {
-  bool _isLoading = false;
   late AnimationController _waveController;
+  bool _navigating = false;
+  // Minimum display time so the animation is always seen
+  bool _minTimeElapsed = false;
 
   @override
   void initState() {
@@ -28,18 +31,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat();
-  }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Listen for OAuth deep-link completion (e.g. Kakao browser redirect)
-    ref.listenManual(authStateProvider, (_, next) {
-      next.whenData((state) {
-        if (state.event == AuthChangeEvent.signedIn && mounted) {
-          context.go('/map');
-        }
-      });
+    // Ensure splash shows for at least one animation cycle
+    Future.delayed(const Duration(milliseconds: 2600), () {
+      if (mounted) setState(() => _minTimeElapsed = true);
+      _trySignIn();
     });
   }
 
@@ -49,8 +45,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     super.dispose();
   }
 
+  /// Called when both min time has elapsed AND Supabase has initialised.
+  Future<void> _trySignIn() async {
+    if (!mounted || _navigating) return;
+    // Wait for supabaseInitProvider to complete (non-blocking — it was
+    // already kicked off by the provider system, this just awaits it)
+    final initAsync = ref.read(supabaseInitProvider);
+    if (!initAsync.hasValue) return; // still loading — listener will retry
+    _navigating = true;
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .signInAnonymously()
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Non-fatal — navigate to map even if anon auth fails
+    }
+    if (mounted) context.go('/map');
+  }
+
   @override
   Widget build(BuildContext context) {
+    // When Supabase finishes initialising AND min time has elapsed → sign in
+    ref.listen(supabaseInitProvider, (_, next) {
+      if (next.hasValue && _minTimeElapsed) _trySignIn();
+    });
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
@@ -102,15 +122,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     .fadeIn(delay: 700.ms, duration: 600.ms)
                     .slideY(begin: 0.2, end: 0),
                 const Spacer(flex: 3),
-                // Login Buttons
-                _LoginButtons(
-                  isLoading: _isLoading,
-                  onKakao: _signInWithKakao,
-                  onGoogle: _signInWithGoogle,
-                )
-                    .animate()
-                    .fadeIn(delay: 1000.ms, duration: 600.ms)
-                    .slideY(begin: 0.3, end: 0),
+                // Subtle loading indicator (appears after slogan fades in)
+                const SizedBox(
+                  height: 52,
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: AppColors.mintGreen,
+                        strokeWidth: 2.5,
+                      ),
+                    ),
+                  ),
+                ).animate().fadeIn(delay: 1800.ms, duration: 400.ms),
                 const SizedBox(height: 48),
               ],
             ),
@@ -119,201 +144,4 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       ),
     );
   }
-
-  Future<void> _signInWithKakao() async {
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(authRepositoryProvider).signInWithKakao();
-      // Auth completes asynchronously via deep link → authStateProvider listener
-    } catch (e) {
-      if (mounted) _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _signInWithGoogle() async {
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(authRepositoryProvider).signInWithGoogle();
-      // Auth completes asynchronously via deep link → authStateProvider listener
-    } catch (e) {
-      if (mounted) _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.dbVeryLoud,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-}
-
-class _LoginButtons extends StatelessWidget {
-  final bool isLoading;
-  final VoidCallback onKakao;
-  final VoidCallback onGoogle;
-
-  const _LoginButtons({
-    required this.isLoading,
-    required this.onKakao,
-    required this.onGoogle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.mintGreen),
-      );
-    }
-
-    return Column(
-      children: [
-        // Kakao Sign In (brand: #FEE500 yellow, black text)
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: onKakao,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFEE500),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              elevation: 0,
-            ),
-            icon: const _KakaoIcon(),
-            label: const Text(
-              AppStrings.loginWithKakao,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Google Sign In
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: OutlinedButton.icon(
-            onPressed: onGoogle,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.textPrimary,
-              side: const BorderSide(color: AppColors.divider, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            icon: const _GoogleIcon(),
-            label: const Text(
-              AppStrings.loginWithGoogle,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Kakao talk-bubble icon (simplified)
-class _KakaoIcon extends StatelessWidget {
-  const _KakaoIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 20,
-      height: 20,
-      child: CustomPaint(painter: _KakaoLogoPainter()),
-    );
-  }
-}
-
-class _KakaoLogoPainter extends CustomPainter {
-  const _KakaoLogoPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF3C1E1E)  // Kakao dark brown
-      ..style = PaintingStyle.fill;
-    final cx = size.width / 2;
-    final cy = size.height / 2 - size.height * 0.05;
-    // Oval speech bubble
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(cx, cy),
-        width: size.width,
-        height: size.height * 0.85,
-      ),
-      paint,
-    );
-    // Tail triangle at bottom-center
-    final tail = Path()
-      ..moveTo(cx - size.width * 0.12, cy + size.height * 0.30)
-      ..lineTo(cx + size.width * 0.05, cy + size.height * 0.50)
-      ..lineTo(cx + size.width * 0.18, cy + size.height * 0.28)
-      ..close();
-    canvas.drawPath(tail, paint);
-  }
-
-  @override
-  bool shouldRepaint(_KakaoLogoPainter old) => false;
-}
-
-class _GoogleIcon extends StatelessWidget {
-  const _GoogleIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 20,
-      height: 20,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
-    );
-  }
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  const _GoogleLogoPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Simplified Google G icon using paint
-    final paint = Paint()..style = PaintingStyle.fill;
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Draw coloured arcs to approximate Google logo
-    final colors = [
-      const Color(0xFF4285F4),
-      const Color(0xFF34A853),
-      const Color(0xFFFBBC05),
-      const Color(0xFFEA4335),
-    ];
-    for (int i = 0; i < 4; i++) {
-      paint.color = colors[i];
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        (i * 1.5707963) - 0.7853982,
-        1.5707963,
-        true,
-        paint,
-      );
-    }
-    // White center
-    paint.color = Colors.white;
-    canvas.drawCircle(center, radius * 0.6, paint);
-  }
-
-  @override
-  bool shouldRepaint(_GoogleLogoPainter oldDelegate) => false;
 }

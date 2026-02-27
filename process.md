@@ -1,6 +1,6 @@
 # Noise Spot — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-02-27 (구글 로그인 버그 수정 ✅, Places Autocomplete 구현 ✅, Maps API 키 교체 ✅)
+마지막 업데이트: 2026-02-27 (브랜드 카페 선표시 ✅, 검색→측정 UX 개선 ✅, JSON 시드 인프라 ✅)
 
 ---
 
@@ -340,6 +340,50 @@ Phase 12: UI 폴리시           ████████████ 100% ✅ (
 
 ---
 
+### Phase 12-F: 브랜드 카페 선표시 (2026-02-27)
+
+#### Google Places 실시간 발견
+- [x] `lib/core/services/places_service.dart`
+  - `PlaceResult` 클래스 추가 (placeId, name, lat, lng)
+  - `nearbyBrandCafes(lat, lng, radiusMeters=3000)` — Nearby Search API, 브랜드 키워드 15개 필터
+  - `_brandKeywords` 상수 (스타벅스, 투썸플레이스, 이디야, 메가커피, 할리스 등 15종)
+- [x] `lib/features/map/data/spots_repository.dart`
+  - `upsertBrandSpots(List<PlaceResult>)` — `ON CONFLICT DO NOTHING`, 신규 삽입 수 반환
+  - `getSpotIdByPlaceId(placeId)` — google_place_id로 기존 spotId 조회
+- [x] `lib/features/map/presentation/map_controller.dart`
+  - `_discoveryCache = BoundsCache(ttlSeconds: 1800)` — 30분 캐시 (Google Places 비용 절감)
+  - `_discoverBrandCafes(lat, lng)` — 백그라운드 발견 + upsert + 신규 추가 시 재로드
+  - `onCameraIdle()` — 발견 캐시 체크 후 `unawaited(_discoverBrandCafes())` 호출
+
+#### JSON 번들 시드
+- [x] `assets/seed/brand_cafes.json` — 번들 시드 파일 (현재 빈 상태 → 스크립트로 생성)
+- [x] `lib/core/services/seed_service.dart` — 앱 최초 설치 후 1회 Supabase upsert
+  - SharedPreferences `brand_cafes_seed_v1` 키로 중복 실행 방지
+  - `MapController.build()`에서 `unawaited(SeedService.seedIfNeeded(...))`로 호출
+- [x] `scripts/generate_seed.py` — 네이버 지역검색 API로 brand_cafes.json 생성
+  - 15개 브랜드 × 16개 지역 = 240 쿼리, KATECH→WGS84 좌표 변환 (mapx/mapy × 1e-7)
+  - `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` 환경변수 필요
+- [x] `pubspec.yaml` — `assets/seed/brand_cafes.json` 등록
+
+### Phase 12-G: 검색→측정 UX 개선 (2026-02-27)
+
+#### 검색 결과 선택 카드
+- [x] `lib/features/map/presentation/map_screen.dart`
+  - `_SearchBar.onPlaceSelected` 시그니처 변경: `(LatLng, String)` → `(PlacePrediction, PlaceLatLng)`
+  - `_searchPrediction` / `_searchLatLng` 상태 추가
+  - 검색 결과 선택 시 `_SearchPlaceCard` 표시 (장소명 + 주소 + "이 장소 측정하기" + X)
+  - `_onMeasureSearchedPlace()` — DB에 placeId 스팟 있으면 spotId로, 없으면 신규 생성 경로
+  - "+" FAB 제거 (무작위 위치 추가 → 검색 기반 추가로 UX 통일)
+  - `_hasBottomCard` getter로 FAB / 필터바 위치 자동 조정
+
+#### placeId/lat/lng 파라미터 추가
+- [x] `lib/core/router/app_router.dart` — `placeId`, `lat`, `lng` query param → ReportScreen 전달
+- [x] `lib/features/report/presentation/report_screen.dart` — `placeId`, `lat`, `lng` 옵셔널 파라미터
+- [x] `lib/features/report/presentation/report_controller.dart`
+  - `_googlePlaceId` 필드 + `initialize()` `googlePlaceId` 파라미터 추가
+  - `submitWithSticker()` — 저장된 lat/lng 있으면 GPS 대신 사용
+  - 신규 스팟 생성 시 `googlePlaceId` 전달 → `google_place_id` 컬럼 저장
+
 ### Phase 13: App Store 출시 준비
 
 | 상태 | 작업 |
@@ -386,6 +430,13 @@ Phase 12: UI 폴리시           ████████████ 100% ✅ (
 - **해결 방법**: Kakao Developers → 앱 설정 → 추가 기능 신청 → 비즈 앱 등록 후 account_email 권한 신청
 - **임시 상태**: 카카오 버튼은 UI에 유지, 로그인 시 KOE205 에러 발생
 - **우회**: Google 로그인으로 테스트 가능
+
+### 10. 시드 데이터 미생성 (요청 시 처리)
+- `assets/seed/brand_cafes.json` 현재 빈 파일 (`"spots": []`)
+- **해결**: 네이버 클라우드 플랫폼 검색 API 발급 후 `python3 scripts/generate_seed.py` 실행
+  - URL: https://developers.naver.com/apps/#/register → 검색 API → 지역 선택
+  - `export NAVER_CLIENT_ID=xxx NAVER_CLIENT_SECRET=yyy && python3 scripts/generate_seed.py`
+- 시드 없이도 Google Places 실시간 발견으로 브랜드 카페가 자동 추가됨 (지도 이동 시)
 
 ### 8. SpotInfoCard Lazy Loading
 - 현재 마커 탭 시 이미 로드된 SpotModel 데이터만 표시

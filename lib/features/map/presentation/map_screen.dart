@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/map_constants.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/utils/db_classifier.dart';
+import '../data/spots_repository.dart';
 import '../domain/spot_model.dart';
 import 'map_controller.dart';
 import 'widgets/filter_bar.dart';
@@ -26,6 +27,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   double _currentZoom = MapConstants.defaultZoom;
   SpotModel? _selectedSpot;
 
+  // Search result selection state
+  PlacePrediction? _searchPrediction;
+  PlaceLatLng? _searchLatLng;
+
   // Custom markers (async built from SpotMarkerWidget)
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
@@ -41,6 +46,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     target: LatLng(MapConstants.defaultLat, MapConstants.defaultLng),
     zoom: MapConstants.defaultZoom,
   );
+
+  bool get _hasBottomCard => _selectedSpot != null || _searchPrediction != null;
 
   @override
   void initState() {
@@ -122,7 +129,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             },
             markers: _markers,
             circles: _circles,
-            onTap: (_) => setState(() => _selectedSpot = null),
+            onTap: (_) => setState(() {
+              _selectedSpot = null;
+              _searchPrediction = null;
+              _searchLatLng = null;
+            }),
           ),
 
           // Empty state overlay (no spots in this area)
@@ -130,7 +141,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               mapState.spots.isEmpty &&
               displayMode != SpotDisplayMode.hidden)
             Positioned(
-              bottom: _selectedSpot != null ? 228 : 94,
+              bottom: _hasBottomCard ? 228 : 94,
               left: 40,
               right: 40,
               child: Center(
@@ -151,7 +162,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ],
                   ),
                   child: const Text(
-                    '이 지역에 아직 소음 기록이 없어요\n첫 번째로 측정해 보세요!',
+                    '이 지역에 아직 소음 기록이 없어요\n근처 카페를 검색해서 측정해 보세요!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.textSecondary,
@@ -174,7 +185,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: _selectedSpot != null ? 200 : 32,
+            bottom: _hasBottomCard ? 200 : 32,
             child: FilterBar(
               activeFilter: mapState.activeFilter,
               onFilterChanged: (filter) =>
@@ -182,8 +193,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
 
-          // Spot info card (lazy load on tap)
-          if (_selectedSpot != null)
+          // Spot info card (tap on existing marker)
+          if (_selectedSpot != null && _searchPrediction == null)
             Positioned(
               left: 0,
               right: 0,
@@ -198,15 +209,36 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ),
 
+          // Search place card (search result selected, not yet a spot)
+          if (_searchPrediction != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _SearchPlaceCard(
+                prediction: _searchPrediction!,
+                latLng: _searchLatLng!,
+                onDismiss: () => setState(() {
+                  _searchPrediction = null;
+                  _searchLatLng = null;
+                }),
+                onMeasure: _onMeasureSearchedPlace,
+              ),
+            ),
+
           // FAB: back to current location
           Positioned(
             right: 16,
-            bottom: _selectedSpot != null ? 228 : 94,
+            bottom: _hasBottomCard ? 228 : 94,
             child: FloatingActionButton.small(
               onPressed: () {
                 ref.read(mapControllerProvider.notifier).refreshLocation();
                 _moveToUserLocation();
-                setState(() => _selectedSpot = null);
+                setState(() {
+                  _selectedSpot = null;
+                  _searchPrediction = null;
+                  _searchLatLng = null;
+                });
               },
               backgroundColor: Colors.white,
               foregroundColor: AppColors.mintGreen,
@@ -244,9 +276,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// Builds markers/circles for the given [mode].
-  /// - individual/reduced: custom bitmap markers (cached by spot ID)
-  /// - heatmap: Circle overlays per spot (zoom 11~12)
-  /// - hidden: clears all
   Future<void> _rebuildMarkersAsync(
     List<SpotModel> spots,
     SpotDisplayMode mode,
@@ -295,7 +324,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         position: LatLng(spot.lat, spot.lng),
         icon: _bitmapCache[cacheKey]!,
         alpha: spot.markerOpacity,
-        onTap: () => setState(() => _selectedSpot = spot),
+        onTap: () => setState(() {
+          _selectedSpot = spot;
+          _searchPrediction = null;
+          _searchLatLng = null;
+        }),
       ));
     }
 
@@ -317,10 +350,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  void _onPlaceSelected(LatLng position, String name) {
+  void _onPlaceSelected(PlacePrediction prediction, PlaceLatLng latLng) {
     _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(position, MapConstants.defaultZoom),
+      CameraUpdate.newLatLngZoom(
+        LatLng(latLng.lat, latLng.lng),
+        MapConstants.defaultZoom,
+      ),
     );
+    setState(() {
+      _selectedSpot = null;
+      _searchPrediction = prediction;
+      _searchLatLng = latLng;
+    });
     // Trigger spot reload at new location
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_mapController == null || !mounted) return;
@@ -328,10 +369,126 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ref.read(mapControllerProvider.notifier).onCameraIdle(bounds, _currentZoom);
     });
   }
+
+  /// Navigate to report screen for a search-selected place.
+  /// Checks if the spot already exists in DB (via google_place_id).
+  Future<void> _onMeasureSearchedPlace() async {
+    final prediction = _searchPrediction;
+    final latLng = _searchLatLng;
+    if (prediction == null || latLng == null) return;
+
+    // Check if spot already exists in DB
+    final existingSpotId = await ref
+        .read(spotsRepositoryProvider)
+        .getSpotIdByPlaceId(prediction.placeId);
+
+    if (!mounted) return;
+
+    if (existingSpotId != null) {
+      // Spot exists → go directly to report with spotId
+      context.push(
+        '/report?spotId=$existingSpotId&spotName=${Uri.encodeComponent(prediction.mainText)}',
+      );
+    } else {
+      // New spot → pass placeId + coordinates for spot creation on submit
+      context.push(
+        '/report'
+        '?spotName=${Uri.encodeComponent(prediction.mainText)}'
+        '&placeId=${prediction.placeId}'
+        '&lat=${latLng.lat}'
+        '&lng=${latLng.lng}',
+      );
+    }
+  }
+}
+
+/// Card shown when user selects a search result — lets them measure at that place.
+class _SearchPlaceCard extends StatelessWidget {
+  final PlacePrediction prediction;
+  final PlaceLatLng latLng;
+  final VoidCallback onDismiss;
+  final VoidCallback onMeasure;
+
+  const _SearchPlaceCard({
+    required this.prediction,
+    required this.latLng,
+    required this.onDismiss,
+    required this.onMeasure,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.place_rounded, color: AppColors.mintGreen, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  prediction.mainText,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 18),
+                color: AppColors.textHint,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: onDismiss,
+              ),
+            ],
+          ),
+          if (prediction.secondaryText.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                prediction.secondaryText,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textHint,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onMeasure,
+              icon: const Icon(Icons.graphic_eq_rounded, size: 18),
+              label: const Text('이 장소 측정하기'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SearchBar extends ConsumerStatefulWidget {
-  final void Function(LatLng position, String name) onPlaceSelected;
+  final void Function(PlacePrediction prediction, PlaceLatLng latLng) onPlaceSelected;
   final double? userLat;
   final double? userLng;
 
@@ -383,7 +540,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
     setState(() => _suggestions = []);
     final details = await ref.read(placesServiceProvider).getDetails(prediction.placeId);
     if (details != null && mounted) {
-      widget.onPlaceSelected(LatLng(details.lat, details.lng), prediction.mainText);
+      widget.onPlaceSelected(prediction, details);
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/constants/map_constants.dart';
+import '../../../core/services/places_service.dart';
 import '../domain/spot_model.dart';
 
 class SpotsRepository {
@@ -44,6 +45,41 @@ class SpotsRepository {
         .eq('google_place_id', placeId)
         .maybeSingle();
     return response != null;
+  }
+
+  /// Upsert brand cafe spots discovered via Places Nearby Search.
+  /// Skips spots that already exist (google_place_id UNIQUE constraint).
+  /// Returns the number of newly inserted spots.
+  Future<int> upsertBrandSpots(List<PlaceResult> places) async {
+    if (places.isEmpty) return 0;
+
+    final rows = places
+        .map((p) => {
+              'name': p.name,
+              'google_place_id': p.placeId,
+              'location': 'POINT(${p.lng} ${p.lat})',
+              'average_db': 0,
+              'report_count': 0,
+              'trust_score': 0,
+            })
+        .toList();
+
+    final response = await _client
+        .from('spots')
+        .upsert(rows, onConflict: 'google_place_id', ignoreDuplicates: true)
+        .select('id');
+
+    return (response as List).length;
+  }
+
+  /// Returns the spot ID for a given [placeId], or null if not in DB yet.
+  Future<String?> getSpotIdByPlaceId(String placeId) async {
+    final response = await _client
+        .from('spots')
+        .select('id')
+        .eq('google_place_id', placeId)
+        .maybeSingle();
+    return response?['id'] as String?;
   }
 
   /// Create a new spot (called once per new location during first report).

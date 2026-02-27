@@ -13,23 +13,51 @@ import 'widgets/sticker_card_grid.dart';
 class ReportScreen extends ConsumerStatefulWidget {
   final String? spotId;
   final String spotName;
+  final String? placeId;
+  final double? lat;
+  final double? lng;
 
-  const ReportScreen({super.key, this.spotId, required this.spotName});
+  const ReportScreen({
+    super.key,
+    this.spotId,
+    required this.spotName,
+    this.placeId,
+    this.lat,
+    this.lng,
+  });
 
   @override
   ConsumerState<ReportScreen> createState() => _ReportScreenState();
 }
 
 class _ReportScreenState extends ConsumerState<ReportScreen> {
+  late final TextEditingController _nameController;
+
+  bool get _isNewSpot => widget.spotId == null || widget.spotId!.isEmpty;
+
   @override
   void initState() {
     super.initState();
-    // Set args into shared provider, then start measurement
+    _nameController = TextEditingController(
+      text: widget.spotName.isNotEmpty ? widget.spotName : '내 스팟',
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final notifier = ref.read(reportControllerProvider.notifier);
-      notifier.initialize(spotId: widget.spotId ?? '');
+      notifier.initialize(
+        spotId: widget.spotId ?? '',
+        spotName: _isNewSpot ? _nameController.text : widget.spotName,
+        lat: widget.lat,
+        lng: widget.lng,
+        googlePlaceId: widget.placeId,
+      );
       notifier.startMeasurement();
     });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
   }
 
   @override
@@ -40,7 +68,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       backgroundColor: AppColors.bgWhite,
       appBar: AppBar(
         title: Text(
-          widget.spotName.isEmpty ? '소음 측정' : widget.spotName,
+          _isNewSpot ? '새 스팟 측정' : (widget.spotName.isEmpty ? '소음 측정' : widget.spotName),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -51,8 +79,17 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
       ),
       body: Column(
         children: [
-          // Fixed privacy notice (always visible)
           const PrivacyNoticeBar(),
+          // Name input for new spots
+          if (_isNewSpot &&
+              (state.phase == ReportPhase.measuring ||
+                  state.phase == ReportPhase.stabilizing ||
+                  state.phase == ReportPhase.stickerSelection))
+            _SpotNameInput(
+              controller: _nameController,
+              onChanged: (name) =>
+                  ref.read(reportControllerProvider.notifier).updateSpotName(name),
+            ),
           Expanded(child: _buildBody(state)),
         ],
       ),
@@ -69,6 +106,11 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           measuredDb: state.stableDb,
           onSelected: (sticker) async {
             final controller = ref.read(reportControllerProvider.notifier);
+
+            // Ensure spot name is up to date
+            if (_isNewSpot) {
+              controller.updateSpotName(_nameController.text);
+            }
 
             final isNear = await controller.verifyProximity();
             if (!isNear && mounted) {
@@ -95,6 +137,45 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
               ref.read(reportControllerProvider.notifier).startMeasurement(),
         ),
     };
+  }
+}
+
+/// Name input shown when creating a new spot
+class _SpotNameInput extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  const _SpotNameInput({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.mintGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.mintGreen.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.place_rounded, size: 18, color: AppColors.mintGreen),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              decoration: const InputDecoration(
+                hintText: '장소 이름 입력 (예: 스타벅스 홍대점)',
+                hintStyle: TextStyle(color: AppColors.textHint, fontSize: 14),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

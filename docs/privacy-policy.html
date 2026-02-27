@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>개인정보처리방침 — Noise Spot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f9f9f9;
+      color: #333;
+      line-height: 1.8;
+    }
+    header {
+      background: linear-gradient(135deg, #5BC8AC, #78C5E8);
+      color: white;
+      padding: 48px 24px 32px;
+      text-align: center;
+    }
+    header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    header p  { margin-top: 8px; font-size: 15px; opacity: 0.9; }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+    section { margin-bottom: 40px; }
+    h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #5BC8AC;
+    }
+    p  { margin-bottom: 10px; font-size: 15px; color: #444; }
+    ul { padding-left: 20px; margin-bottom: 10px; }
+    li { margin-bottom: 6px; font-size: 15px; color: #444; }
+    .highlight {
+      background: #e8f8f3;
+      border-left: 4px solid #5BC8AC;
+      padding: 14px 18px;
+      border-radius: 4px;
+      margin: 16px 0;
+      font-size: 15px;
+      color: #2a6048;
+      font-weight: 600;
+    }
+    .contact {
+      background: #f0f0f0;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Noise Spot 개인정보처리방침</h1>
+  <p>시끄러운 도시 속, 나만의 고요한 스팟 찾기</p>
+</header>
+
+<main>
+
+  <section>
+    <h2>1. 개요</h2>
+    <p>
+      Noise Spot(이하 "앱")은 주변 소음 정보를 실시간으로 공유하는 iOS 앱입니다.
+      본 방침은 앱이 수집하는 정보, 사용 목적, 보관 기간 및 사용자 권리를 설명합니다.
+    </p>
+    <p>시행일: 2026년 2월 27일</p>
+  </section>
+
+  <section>
+    <h2>2. 수집하는 정보</h2>
+    <ul>
+      <li><strong>소음 수치(dB)</strong> — 마이크로 측정한 데시벨 숫자만 저장됩니다.</li>
+      <li><strong>위치 정보</strong> — 앱 사용 중(When In Use)에만 현재 위치를 수집합니다.</li>
+      <li><strong>익명 사용자 ID</strong> — 로그인 없이 자동 발급되는 익명 식별자입니다. 개인 신원과 연결되지 않습니다.</li>
+      <li><strong>스티커 선택값</strong> — STUDY / MEETING / RELAX 중 선택한 항목이 저장됩니다.</li>
+    </ul>
+    <div class="highlight">
+      음성 녹음 파일은 절대 저장·전송되지 않습니다.<br>
+      마이크는 데시벨 수치 추출 즉시 데이터를 휘발 처리합니다.
+    </div>
+  </section>
+
+  <section>
+    <h2>3. 수집하지 않는 정보</h2>
+    <ul>
+      <li>음성 녹음 파일 또는 오디오 스트림</li>
+      <li>연락처, 사진, 기타 민감 정보</li>
+      <li>광고 식별자(IDFA) — 추적 허용 시에도 광고 목적으로 사용하지 않습니다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. 정보 이용 목적</h2>
+    <ul>
+      <li>주변 스팟의 소음 평균 데이터 산출 및 지도 표시</li>
+      <li>사용자별 리포팅 기록 및 통계 제공</li>
+      <li>신뢰도 등급(Trust Score) 계산</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5. 제3자 제공</h2>
+    <p>수집된 정보는 원칙적으로 제3자에게 제공되지 않습니다. 단, 서비스 운영에 필요한 아래 제3자 서비스를 이용합니다.</p>
+    <ul>
+      <li><strong>Supabase</strong> — 데이터베이스 및 인증 (AWS ap-northeast-2 서울 리전)</li>
+      <li><strong>Google Maps Platform</strong> — 지도 표시</li>
+      <li><strong>Google Maps Platform</strong> — 지도 표시 (위치 정보 전송)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. 보관 기간</h2>
+    <ul>
+      <li>소음 리포트 데이터: 마지막 활동일로부터 <strong>30일</strong> 이후 지도에서 비표시</li>
+      <li>회원 탈퇴 시: 모든 리포트 데이터 즉시 삭제</li>
+      <li>위치 정보: 앱 세션 종료 시 미저장</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. 사용자 권리</h2>
+    <ul>
+      <li><strong>데이터 열람</strong> — 앱 내 마이페이지에서 본인의 측정 기록 확인 가능</li>
+      <li><strong>데이터 삭제</strong> — 앱 설정 → "계정 삭제"로 모든 데이터 즉시 삭제</li>
+      <li><strong>위치 권한 철회</strong> — 기기 설정에서 위치 권한 언제든지 거부 가능</li>
+      <li><strong>마이크 권한 철회</strong> — 기기 설정에서 마이크 권한 언제든지 거부 가능</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>8. 어린이 개인정보 보호</h2>
+    <p>
+      본 앱은 만 14세 미만 아동을 대상으로 하지 않습니다.
+      만 14세 미만은 보호자의 동의 없이 앱을 사용하지 않도록 안내합니다.
+    </p>
+  </section>
+
+  <section>
+    <h2>9. 방침 변경</h2>
+    <p>
+      본 방침이 변경될 경우 앱 업데이트 또는 공지사항을 통해 사전 안내합니다.
+      변경 방침은 공지일로부터 7일 후 적용됩니다.
+    </p>
+  </section>
+
+  <section>
+    <h2>10. 문의</h2>
+    <div class="contact">
+      <p>개인정보 처리에 관한 문의사항이 있으시면 아래로 연락주세요.</p>
+      <p style="margin-top:10px;">
+        <strong>개발자:</strong> KJMoon<br>
+        <strong>이메일:</strong> <a href="mailto:kjmoon@noisespot.app">kjmoon@noisespot.app</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  &copy; 2026 Noise Spot. All rights reserved.
+</footer>
+
+</body>
+</html>

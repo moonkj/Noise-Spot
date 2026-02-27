@@ -10,19 +10,27 @@ import '../services/supabase_service.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ValueNotifier<bool>(false);
+  // Trigger router refresh on auth state change AND on Supabase init complete
   ref.listen(authStateProvider, (_, _) => authNotifier.value = !authNotifier.value);
+  ref.listen(supabaseInitProvider, (_, _) => authNotifier.value = !authNotifier.value);
 
   return GoRouter(
     initialLocation: '/onboarding',
     debugLogDiagnostics: false,
     refreshListenable: authNotifier,
     redirect: (context, state) {
+      // Don't redirect until Supabase is fully initialised
+      final initAsync = ref.read(supabaseInitProvider);
+      if (!initAsync.hasValue) return null; // stay on /onboarding (splash)
+
       final session = ref.read(supabaseClientProvider).auth.currentSession;
       final isLoggedIn = session != null;
       final isOnboarding = state.matchedLocation == '/onboarding';
 
       if (isLoggedIn && isOnboarding) return '/map';
-      if (!isLoggedIn && !isOnboarding) return '/onboarding';
+      // Do NOT force unauthenticated users back to onboarding —
+      // anonymous sign-in may fail on a bad network, and we still
+      // want to show the map (reports will be skipped without a session).
       return null;
     },
     routes: [
@@ -45,7 +53,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final spotId = state.uri.queryParameters['spotId'];
               final spotName = state.uri.queryParameters['spotName'] ?? '';
-              return ReportScreen(spotId: spotId, spotName: spotName);
+              final placeId = state.uri.queryParameters['placeId'];
+              final lat = double.tryParse(state.uri.queryParameters['lat'] ?? '');
+              final lng = double.tryParse(state.uri.queryParameters['lng'] ?? '');
+              return ReportScreen(
+                spotId: spotId,
+                spotName: spotName,
+                placeId: placeId,
+                lat: lat,
+                lng: lng,
+              );
             },
           ),
           GoRoute(
@@ -64,13 +81,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Bottom navigation shell for main app screens
 class _MainShell extends StatelessWidget {
   final Widget child;
   const _MainShell({required this.child});
 
   @override
-  Widget build(BuildContext context) {
-    return child;
-  }
+  Widget build(BuildContext context) => child;
 }

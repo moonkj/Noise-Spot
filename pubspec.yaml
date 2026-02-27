@@ -40,9 +40,6 @@ dependencies:
   shared_preferences: ^2.3.5
   flutter_secure_storage: ^9.2.4
 
-  # Privacy / ATT (App Tracking Transparency — required for App Store)
-  app_tracking_transparency: ^2.0.6+1
-
   # HTTP (Places Autocomplete API)
   http: ^1.2.0
 
@@ -73,3 +70,4 @@ flutter:
     - assets/icon/
     - assets/animations/
     - assets/map_style.json
+    - assets/seed/brand_cafes.json

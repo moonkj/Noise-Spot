@@ -28,6 +28,40 @@ class PlaceLatLng {
   const PlaceLatLng({required this.lat, required this.lng});
 }
 
+/// A discovered place with coordinates — used for brand cafe seeding.
+class PlaceResult {
+  final String placeId;
+  final String name;
+  final double lat;
+  final double lng;
+
+  const PlaceResult({
+    required this.placeId,
+    required this.name,
+    required this.lat,
+    required this.lng,
+  });
+}
+
+/// Brand name keywords (Korean + English) used to filter Nearby Search results.
+const _brandKeywords = [
+  '스타벅스', 'starbucks',
+  '투썸플레이스', 'a twosome', 'twosome',
+  '이디야', 'ediya',
+  '메가커피', '메가mgc', 'mega coffee',
+  '할리스', 'hollys',
+  '컴포즈커피', 'compose coffee',
+  '파스쿠찌', 'pascucci',
+  '탐앤탐스', 'tom n toms', 'tomntoms',
+  '커피빈', 'coffee bean',
+  '엔제리너스', 'angelinus',
+  '폴바셋', 'paul bassett',
+  '블루보틀', 'blue bottle',
+  '카페베네', 'caffe bene',
+  '빽다방', 'paik',
+  '드롭탑', 'droptop',
+];
+
 class PlacesService {
   final http.Client _client;
   PlacesService({http.Client? client}) : _client = client ?? http.Client();
@@ -95,20 +129,82 @@ class PlacesService {
         },
       );
       final response = await _client.get(uri).timeout(const Duration(seconds: 5));
+      final body = response.body;
+      debugPrint('[Places] details HTTP ${response.statusCode} | ${body.length > 300 ? body.substring(0, 300) : body}');
       if (response.statusCode != 200) return null;
 
-      final data = json.decode(response.body) as Map<String, dynamic>;
+      final data = json.decode(body) as Map<String, dynamic>;
+      debugPrint('[Places] details status=${data['status']} error=${data['error_message']}');
       final result = data['result'] as Map<String, dynamic>?;
       final location = (result?['geometry'] as Map<String, dynamic>?)?['location']
           as Map<String, dynamic>?;
+      debugPrint('[Places] details location=$location');
       if (location == null) return null;
 
       return PlaceLatLng(
         lat: (location['lat'] as num).toDouble(),
         lng: (location['lng'] as num).toDouble(),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Places] getDetails error: $e');
       return null;
+    }
+  }
+
+  /// Returns brand cafes near [lat]/[lng] using Google Places Nearby Search.
+  /// Filters results to known brand names only.
+  /// [radiusMeters] defaults to 3 km.
+  Future<List<PlaceResult>> nearbyBrandCafes({
+    required double lat,
+    required double lng,
+    int radiusMeters = 3000,
+  }) async {
+    try {
+      final uri = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/place/nearbysearch/json',
+        {
+          'location': '$lat,$lng',
+          'radius': '$radiusMeters',
+          'type': 'cafe',
+          'key': _mapsApiKey,
+          'language': 'ko',
+        },
+      );
+
+      final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return [];
+
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final status = data['status'] as String?;
+      if (status != 'OK' && status != 'ZERO_RESULTS') return [];
+
+      final results = data['results'] as List<dynamic>? ?? [];
+      final brandCafes = <PlaceResult>[];
+
+      for (final r in results) {
+        final name = r['name'] as String? ?? '';
+        final lower = name.toLowerCase();
+
+        // Only include recognized brand cafes
+        if (!_brandKeywords.any((kw) => lower.contains(kw.toLowerCase()))) continue;
+
+        final geo = (r['geometry'] as Map<String, dynamic>?)?['location']
+            as Map<String, dynamic>?;
+        if (geo == null) continue;
+
+        brandCafes.add(PlaceResult(
+          placeId: r['place_id'] as String,
+          name: name,
+          lat: (geo['lat'] as num).toDouble(),
+          lng: (geo['lng'] as num).toDouble(),
+        ));
+      }
+
+      return brandCafes;
+    } catch (e) {
+      debugPrint('[Places] nearbyBrandCafes error: $e');
+      return [];
     }
   }
 }

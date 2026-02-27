@@ -4,6 +4,7 @@ import 'package:noise_meter/noise_meter.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/utils/noise_filter.dart';
 import '../data/report_repository.dart';
+import '../../map/data/spots_repository.dart';
 import '../../map/domain/spot_model.dart';
 
 enum ReportPhase { measuring, stabilizing, stickerSelection, submitting, done, error }
@@ -49,15 +50,32 @@ class ReportController extends Notifier<ReportState> {
   Timer? _stabilizeTimer;
   final List<double> _recentReadings = [];
 
+  // Empty string = new spot (will be created on submit)
   String _spotId = '';
+  String _spotName = '';
+  String? _googlePlaceId;
   double? _spotLat;
   double? _spotLng;
 
   /// Called by ReportScreen before startMeasurement().
-  void initialize({required String spotId, double? lat, double? lng}) {
+  /// Pass empty [spotId] to create a new spot on submit.
+  void initialize({
+    required String spotId,
+    String spotName = '',
+    String? googlePlaceId,
+    double? lat,
+    double? lng,
+  }) {
     _spotId = spotId;
+    _spotName = spotName;
+    _googlePlaceId = googlePlaceId;
     _spotLat = lat;
     _spotLng = lng;
+  }
+
+  /// Update the spot name (used when user types a name for a new spot).
+  void updateSpotName(String name) {
+    _spotName = name;
   }
 
   @override
@@ -146,8 +164,30 @@ class ReportController extends Notifier<ReportState> {
     );
 
     try {
+      var spotId = _spotId;
+
+      // New spot: use stored coordinates (from search) or fall back to GPS
+      if (spotId.isEmpty) {
+        final double lat, lng;
+        if (_spotLat != null && _spotLng != null) {
+          lat = _spotLat!;
+          lng = _spotLng!;
+        } else {
+          final pos = await LocationService.getCurrentPosition();
+          lat = pos.latitude;
+          lng = pos.longitude;
+        }
+        final name = _spotName.trim().isEmpty ? '내 스팟' : _spotName.trim();
+        spotId = await ref.read(spotsRepositoryProvider).createSpot(
+          name: name,
+          googlePlaceId: _googlePlaceId,
+          lat: lat,
+          lng: lng,
+        );
+      }
+
       await ref.read(reportRepositoryProvider).submitReport(
-            spotId: _spotId,
+            spotId: spotId,
             measuredDb: state.stableDb,
             sticker: sticker,
           );

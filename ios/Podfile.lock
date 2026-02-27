@@ -1,8 +1,6 @@
 PODS:
   - app_links (6.4.1):
     - Flutter
-  - app_tracking_transparency (0.0.1):
-    - Flutter
   - audio_streamer (4.3.0):
     - Flutter
   - Flutter (1.0.0)
@@ -34,7 +32,6 @@ PODS:
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
-  - app_tracking_transparency (from `.symlinks/plugins/app_tracking_transparency/ios`)
   - audio_streamer (from `.symlinks/plugins/audio_streamer/ios`)
   - Flutter (from `Flutter`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
@@ -53,8 +50,6 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
-  app_tracking_transparency:
-    :path: ".symlinks/plugins/app_tracking_transparency/ios"
   audio_streamer:
     :path: ".symlinks/plugins/audio_streamer/ios"
   Flutter:
@@ -76,7 +71,6 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   app_links: 585674be3c6661708e6cd794ab4f39fb9d8356f9
-  app_tracking_transparency: e169b653478da7bb15a6c61209015378ca73e375
   audio_streamer: 7a5aa15f0b48a7a0cb44eb23b5bbfcbfc2eb8171
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_secure_storage: d33dac7ae2ea08509be337e775f6b59f1ff45f12
