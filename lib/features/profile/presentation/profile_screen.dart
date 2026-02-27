@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/services/nickname_service.dart';
 import '../../../core/utils/db_classifier.dart';
 import '../../report/data/report_repository.dart';
 import '../../report/domain/report_model.dart';
@@ -23,6 +24,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(_statsProvider);
     final reportsAsync = ref.watch(_myReportsProvider);
+    final nickname = ref.watch(nicknameProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -44,6 +46,13 @@ class ProfileScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Profile header
+                    _ProfileHeader(
+                      nickname: nickname,
+                      totalReports: stats['total'] as int? ?? 0,
+                      onEditTap: () => context.go('/settings'),
+                    ),
+                    const SizedBox(height: 24),
                     // Stats cards
                     _StatsRow(stats: stats),
                     const SizedBox(height: 24),
@@ -78,6 +87,63 @@ class ProfileScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  final String? nickname;
+  final int totalReports;
+  final VoidCallback onEditTap;
+
+  const _ProfileHeader({
+    required this.nickname,
+    required this.totalReports,
+    required this.onEditTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasName = nickname != null && nickname!.isNotEmpty;
+    return Row(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: AppColors.bgGradient,
+          ),
+          child: const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                hasName ? nickname! : '익명 사용자',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: hasName
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                    ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                hasName ? '측정 $totalReports회' : '설정에서 이름을 정해보세요',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.edit_rounded, size: 18, color: AppColors.textHint),
+          onPressed: onEditTap,
+          tooltip: '설정',
+        ),
+      ],
     );
   }
 }

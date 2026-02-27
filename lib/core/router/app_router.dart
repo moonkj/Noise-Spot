@@ -27,8 +27,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = session != null;
       final isOnboarding = state.matchedLocation == '/onboarding';
 
+      // If already signed in and still on onboarding, skip to map fast.
       if (isLoggedIn && isOnboarding) return '/map';
-      if (!isLoggedIn && !isOnboarding) return '/onboarding';
+      // Do NOT redirect unauthenticated users away from the map —
+      // this app uses a device-identity model (anonymous auth) where the
+      // map is always accessible; only report submission requires a session.
       return null;
     },
     routes: [

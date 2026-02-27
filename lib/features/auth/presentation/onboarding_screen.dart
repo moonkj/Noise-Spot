@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +9,11 @@ import '../../../core/services/supabase_service.dart';
 import '../data/auth_repository.dart';
 import 'widgets/wave_to_spot_painter.dart';
 
-/// Splash screen: waits for Supabase to initialise, then auto-signs-in
-/// anonymously and navigates to the map. Animation plays while waiting.
+/// Splash screen: shows brand animation for ≥ 2.6 s, then navigates to the
+/// map immediately — auth never blocks navigation.
+///
+/// [signInAnonymously] is attempted in the background so the session is ready
+/// by the time the user tries to submit a report. Retries silently on failure.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -20,9 +24,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _waveController;
-  bool _navigating = false;
-  // Minimum display time so the animation is always seen on first launch
-  bool _minTimeElapsed = false;
+  bool _gone = false; // prevent double navigation
 
   @override
   void initState() {
@@ -32,11 +34,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       duration: const Duration(milliseconds: 2400),
     )..repeat();
 
-    // Ensure splash shows for at least one animation cycle
-    Future.delayed(const Duration(milliseconds: 2600), () {
-      if (mounted) setState(() => _minTimeElapsed = true);
-      _trySignIn();
-    });
+    // After 2.6 s, go to map regardless of auth state.
+    // Auth is attempted in the background.
+    Future.delayed(const Duration(milliseconds: 2600), _goToMap);
   }
 
   @override
@@ -45,35 +45,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     super.dispose();
   }
 
-  /// Called when both min time has elapsed AND Supabase has initialised.
-  ///
-  /// On success  → navigates to /map (router also picks up the new session).
-  /// On failure  → resets [_navigating] and auto-retries after 5 s so the
-  ///               splash never freezes regardless of network conditions.
-  Future<void> _trySignIn() async {
-    if (!mounted || _navigating) return;
-    final initAsync = ref.read(supabaseInitProvider);
-    if (!initAsync.hasValue) return; // still loading — listener will retry
-    _navigating = true;
-    try {
-      await ref
-          .read(authRepositoryProvider)
-          .signInAnonymously()
-          .timeout(const Duration(seconds: 8));
-      // Navigate on success; the router's redirect will also confirm.
-      if (mounted) context.go('/map');
-    } catch (_) {
-      // Network error or timeout — allow retry.
-      if (mounted) setState(() => _navigating = false);
-      Future.delayed(const Duration(seconds: 5), _trySignIn);
+  void _goToMap() {
+    if (!mounted || _gone) return;
+    _gone = true;
+    // Fire-and-forget: attempt anonymous sign-in after navigating.
+    // The map is fully viewable without auth; only report submission needs it.
+    unawaited(_trySignInBackground());
+    context.go('/map');
+  }
+
+  /// Silently attempts anonymous sign-in. Retries every 10 s until it
+  /// succeeds (e.g. once network is available or Supabase enables anon auth).
+  Future<void> _trySignInBackground() async {
+    while (true) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        await ref
+            .read(authRepositoryProvider)
+            .signInAnonymously()
+            .timeout(const Duration(seconds: 10));
+        return; // success
+      } catch (_) {
+        await Future.delayed(const Duration(seconds: 10));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // When Supabase finishes initialising AND min time has elapsed → sign in
+    // If Supabase init completes AND the user already has a stored session,
+    // the router will redirect to /map automatically — skip the 2.6 s wait.
     ref.listen(supabaseInitProvider, (_, next) {
-      if (next.hasValue && _minTimeElapsed) _trySignIn();
+      if (next.hasValue) {
+        final session =
+            ref.read(supabaseClientProvider).auth.currentSession;
+        if (session != null) _goToMap();
+      }
     });
 
     return Scaffold(
@@ -127,7 +134,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     .fadeIn(delay: 700.ms, duration: 600.ms)
                     .slideY(begin: 0.2, end: 0),
                 const Spacer(flex: 3),
-                // Subtle loading indicator (appears after slogan fades in)
+                // Subtle loading indicator
                 const SizedBox(
                   height: 52,
                   child: Center(
