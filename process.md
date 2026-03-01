@@ -1,6 +1,6 @@
 # Cafe Vibe — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-03-01 (GitHub Pages ✅, 탐색↔지도 연동 ✅, SpotInfoCard "지도에서 보기" ✅, IPA 빌드 🔄)
+마지막 업데이트: 2026-03-01 (GitHub Pages ✅, 탐색↔지도 연동 ✅, IPA 빌드 57.9MB ✅)
 
 ---
 
@@ -22,7 +22,7 @@ Phase 12: UI 폴리시           ████████████ 100% ✅ (
 Phase 14: UI 전면 개편         ████████████ 100% ✅ (4탭 네비, 탐색/랭킹 신규, 프로필/설정 재설계)
 Phase 15: 버그 수정 & 안정화   ████████████ 100% ✅ (랭킹 영구로딩 수정, 프로필 실데이터, crash 방지)
 Phase 16: 기능 완성           ████████████ 100% ✅ (탐색 onTap, 닉네임 서버저장, migration 002 배포)
-Phase 13: App Store 준비      ████░░░░░░░░  30% 🔄 (privacy-policy ✅, IPA빌드 ✅, TestFlight ⏳)
+Phase 13: App Store 준비      ████████░░░░  65% 🔄 (GitHub Pages ✅, IPA 57.9MB ✅, TestFlight ⏳, ASC 정보 ⏳)
 아키텍처: 익명인증 전환        ████████████ 100% ✅ (SecureLocalStorage ✅, 닉네임 ✅, 버그수정 ✅)
 ```
 
@@ -667,9 +667,10 @@ xcrun altool --upload-app --type ios -f build/ios/ipa/*.ipa \
 |------|------|
 | ✅ | 개인정보처리방침 HTML 작성 (`docs/privacy-policy.html`) — GitHub Pages 배포 예정 |
 | ✅ | IPA 빌드 성공 (`flutter build ipa`) |
-| ⏳ | GitHub Pages 활성화 (repo Settings → Pages → docs/ 폴더) |
+| ✅ | GitHub Pages 활성화 — `moonkj.github.io/Noise-Spot/docs/privacy-policy.html` |
 | ⏳ | App Store Connect — 앱 정보 입력 (한국어/영어) |
 | ⏳ | 스크린샷 — 6.7" / 6.5" / 5.5" (지도, 리포팅, 프로필 화면) |
+| ✅ | IPA 빌드 성공 — `build/ios/ipa/*.ipa` (57.9MB) |
 | ⏳ | Transporter로 TestFlight 업로드 → 내부 테스트 → 심사 제출 |
 
 ---
