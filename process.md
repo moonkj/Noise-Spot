@@ -1,6 +1,6 @@
 # Cafe Vibe — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-03-01 (GitHub Pages ✅, 탐색↔지도 연동 ✅, IPA 빌드 57.9MB ✅)
+마지막 업데이트: 2026-03-01 (SpotDetailScreen ✅, 측정화면 재설계 ✅, 원형게이지+pulse ✅)
 
 ---
 
@@ -22,6 +22,8 @@ Phase 12: UI 폴리시           ████████████ 100% ✅ (
 Phase 14: UI 전면 개편         ████████████ 100% ✅ (4탭 네비, 탐색/랭킹 신규, 프로필/설정 재설계)
 Phase 15: 버그 수정 & 안정화   ████████████ 100% ✅ (랭킹 영구로딩 수정, 프로필 실데이터, crash 방지)
 Phase 16: 기능 완성           ████████████ 100% ✅ (탐색 onTap, 닉네임 서버저장, migration 002 배포)
+Phase 17: SpotDetailScreen   ████████████ 100% ✅ (전체화면 상세, 시간대 차트, 바이브 태그, 최근 측정)
+Phase 18: 측정화면 재설계     ████████████ 100% ✅ (원형게이지, pulse 애니메이션, idle 상태, 커스텀 타이머)
 Phase 13: App Store 준비      ████████░░░░  65% 🔄 (GitHub Pages ✅, IPA 57.9MB ✅, TestFlight ⏳, ASC 정보 ⏳)
 아키텍처: 익명인증 전환        ████████████ 100% ✅ (SecureLocalStorage ✅, 닉네임 ✅, 버그수정 ✅)
 ```
@@ -276,6 +278,56 @@ Phase 13: App Store 준비      ████████░░░░  65% 🔄 (
 - dialog 닫기 → 서버 저장 순서로 처리 (`use_build_context_synchronously` 경고 방지)
 - `supabase_service.dart` import 추가
 - `flutter analyze` 0 issues ✅
+
+---
+
+### ✅ Phase 17: SpotDetailScreen — 전체화면 카페 상세 페이지 (2026-03-01)
+
+#### 구현 완료 내용
+- [x] `lib/features/explore/presentation/spot_detail_screen.dart` — **신규 전체화면 상세 페이지**
+  - `SliverAppBar` (expandedHeight:200, SkyBlue↔Mint 그라데이션 히어로)
+  - `_SummaryBanner` — 평균 dB · 스티커 · 측정 횟수 3가지 요약 배너
+  - `_HourlyChartCard` — 시간대별 소음 추이 (CustomPaint 베지어 라인차트, 30일 집계)
+  - `_VibeTagsCard` — 분위기 해시태그 chips (dB 레벨 + 스티커 + 측정수 기반 파생)
+  - `_RecentReportsCard` — 최근 10개 측정 리스트 (아바타·닉네임·시간·스티커·dB)
+  - `_StickyMeasureButton` — 하단 고정 "소음 측정하기" 버튼 → `/report?spotId=...`
+  - **Provider 2개**: `_hourlyNoiseProvider` / `_recentReportsProvider` (FutureProvider.autoDispose.family)
+- [x] `lib/features/explore/presentation/explore_screen.dart` — 완전 재작성
+  - `_CafeListTile.onTap` → `context.push('/spot/${spot.id}', extra: spot)` (바텀시트 → 풀스크린)
+  - `_SpotDetailSheet`, `_DbGaugeCard`, `_MetaChip` 등 모든 시트 관련 코드 제거
+- [x] `lib/core/router/app_router.dart` — `/spot/:id` 라우트 추가 (ShellRoute 내부, 바텀 탭 자동 숨김)
+- [x] `lib/features/report/data/report_repository.dart` — 신규 메서드 2개
+  - `getSpotRecentReports(spotId)` — 2-query 패턴 (reports → user_profiles 닉네임 batch merge)
+  - `getSpotHourlyNoise(spotId)` — 최근 30일 리포트 클라이언트 집계 (by hour)
+
+---
+
+### ✅ Phase 18: 소음 측정 화면 재설계 (2026-03-01)
+
+#### 구현 완료 내용
+- [x] `lib/features/report/presentation/widgets/db_meter_widget.dart` — **완전 재설계**
+  - **원형 아크 게이지**: 135°~405° (270° sweep), 틱 마크 24개, 배경/활성 아크 레이어
+  - **Pulse 애니메이션**: `TickerProviderStateMixin` 2개 컨트롤러
+    - `_pulseController` — scale 1.0↔1.045, 1400ms easeInOut, 측정 중 반복
+    - `_arcController` — dB 보간 350ms easeOut (이전 값 → 새 값 smooth lerp, 렉 제거)
+  - 중앙: dB 숫자(animated) + "dB" + 레벨 레이블 chip
+  - idle 시 회색, 측정 중 dB 레벨 색상으로 전환 (`AnimatedContainer`)
+- [x] `lib/features/report/presentation/report_controller.dart` — 업데이트
+  - `ReportPhase.idle` 추가 (초기 상태)
+  - `ReportState.elapsedSeconds: int` 필드 추가
+  - `_elapsedTimer` (Timer.periodic 1초) — 측정 중 경과시간 추적
+  - `stopMeasurement()` 공개 메서드 추가 → idle로 복귀
+  - readings 임계값: 10 → **5** (측정 시간 단축, 3초 안정화 유지)
+- [x] `lib/features/report/presentation/report_screen.dart` — **완전 재작성**
+  - `_IdleView` — 회색 게이지 + 측정 팁 카드 ("버튼을 눌러 측정을 시작하세요")
+  - `_MeasuringView` — 컬러 게이지(pulse) + 경과 타이머 배지 "측정 중 MM:SS"
+  - 하단 상태별 버튼: 초록 "측정 시작" (idle) / 갈색 "측정 중지" (measuring/stabilizing)
+  - 자동 시작 제거 → 사용자 수동 제어
+
+#### 버그 수정
+- [x] `lib/features/report/data/report_repository.dart` — `submitReport()` 익명 로그인 fallback 추가
+  - `if (_client.auth.currentUser == null) await _client.auth.signInAnonymously()`
+  - 원인: 백그라운드 로그인 미완료 상태에서 리포트 제출 시 "로그인이 필요합니다" 에러
 
 ---
 

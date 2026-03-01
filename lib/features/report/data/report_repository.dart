@@ -16,6 +16,10 @@ class ReportRepository {
     required double measuredDb,
     required StickerType sticker,
   }) async {
+    // 익명 세션이 없으면 자동으로 sign-in 시도 (배경 로그인이 아직 완료되지 않은 경우 대비)
+    if (_client.auth.currentUser == null) {
+      await _client.auth.signInAnonymously();
+    }
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('로그인이 필요합니다.');
 
@@ -102,6 +106,71 @@ class ReportRepository {
       'total_cafes': totalCafes,
       'has_quiet_cafe': hasQuietCafe,
     };
+  }
+
+  /// Fetch recent reports for a spot with user nicknames.
+  /// Uses 2 queries to avoid N+1: reports → user_profiles nickname merge.
+  Future<List<Map<String, dynamic>>> getSpotRecentReports(
+    String spotId, {
+    int limit = 10,
+  }) async {
+    final reportsResp = await _client
+        .from('reports')
+        .select('measured_db, selected_sticker, created_at, user_id')
+        .eq('spot_id', spotId)
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    final reports = (reportsResp as List).cast<Map<String, dynamic>>();
+    if (reports.isEmpty) return [];
+
+    final userIds =
+        reports.map((r) => r['user_id'] as String).toSet().toList();
+    final profilesResp = await _client
+        .from('user_profiles')
+        .select('user_id, nickname')
+        .inFilter('user_id', userIds);
+
+    final nickMap = {
+      for (final p in (profilesResp as List).cast<Map<String, dynamic>>())
+        p['user_id'] as String: p['nickname'] as String?,
+    };
+
+    return reports
+        .map((r) => {
+              ...r,
+              'nickname': nickMap[r['user_id'] as String] ?? '익명',
+            })
+        .toList();
+  }
+
+  /// Fetch hourly average dB for a spot over the past 30 days.
+  /// Aggregated client-side by hour-of-day.
+  Future<List<(int hour, double avgDb)>> getSpotHourlyNoise(
+      String spotId) async {
+    final since = DateTime.now()
+        .subtract(const Duration(days: 30))
+        .toIso8601String();
+    final response = await _client
+        .from('reports')
+        .select('measured_db, created_at')
+        .eq('spot_id', spotId)
+        .gte('created_at', since);
+
+    final data = (response as List).cast<Map<String, dynamic>>();
+    final Map<int, List<double>> byHour = {};
+    for (final row in data) {
+      final hour =
+          DateTime.parse(row['created_at'] as String).toLocal().hour;
+      byHour
+          .putIfAbsent(hour, () => [])
+          .add((row['measured_db'] as num).toDouble());
+    }
+    return byHour.entries
+        .map((e) =>
+            (e.key, e.value.reduce((a, b) => a + b) / e.value.length))
+        .toList()
+      ..sort((a, b) => a.$1.compareTo(b.$1));
   }
 }
 

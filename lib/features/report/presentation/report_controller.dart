@@ -7,7 +7,7 @@ import '../data/report_repository.dart';
 import '../../map/data/spots_repository.dart';
 import '../../map/domain/spot_model.dart';
 
-enum ReportPhase { measuring, stabilizing, stickerSelection, submitting, done, error }
+enum ReportPhase { idle, measuring, stabilizing, stickerSelection, submitting, done, error }
 
 class ReportState {
   final double currentDb;
@@ -15,13 +15,15 @@ class ReportState {
   final ReportPhase phase;
   final StickerType? selectedSticker;
   final String? errorMessage;
+  final int elapsedSeconds;
 
   const ReportState({
-    this.currentDb = 0,
+    this.currentDb = 30.0,
     this.stableDb = 0,
-    this.phase = ReportPhase.measuring,
+    this.phase = ReportPhase.idle,
     this.selectedSticker,
     this.errorMessage,
+    this.elapsedSeconds = 0,
   });
 
   ReportState copyWith({
@@ -31,6 +33,7 @@ class ReportState {
     StickerType? selectedSticker,
     String? errorMessage,
     bool clearError = false,
+    int? elapsedSeconds,
   }) {
     return ReportState(
       currentDb: currentDb ?? this.currentDb,
@@ -38,6 +41,7 @@ class ReportState {
       phase: phase ?? this.phase,
       selectedSticker: selectedSticker ?? this.selectedSticker,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
     );
   }
 }
@@ -48,6 +52,8 @@ class ReportController extends Notifier<ReportState> {
   NoiseMeter? _meter;
   StreamSubscription<NoiseReading>? _sub;
   Timer? _stabilizeTimer;
+  Timer? _elapsedTimer;
+  int _elapsed = 0;
   final List<double> _recentReadings = [];
 
   // Empty string = new spot (will be created on submit)
@@ -87,7 +93,13 @@ class ReportController extends Notifier<ReportState> {
   /// Begin dB measurement.
   /// Audio is processed in-memory only — never stored or transmitted.
   void startMeasurement() {
-    if (_meter != null) return;
+    if (state.phase == ReportPhase.measuring || state.phase == ReportPhase.stabilizing) return;
+    _elapsed = 0;
+    state = state.copyWith(phase: ReportPhase.measuring, elapsedSeconds: 0, clearError: true);
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _elapsed++;
+      state = state.copyWith(elapsedSeconds: _elapsed);
+    });
     _meter = NoiseMeter();
 
     _sub = _meter!.noise.listen(
@@ -100,7 +112,7 @@ class ReportController extends Notifier<ReportState> {
 
         state = state.copyWith(currentDb: db);
 
-        if (_recentReadings.length >= 10 &&
+        if (_recentReadings.length >= 5 &&
             state.phase == ReportPhase.measuring) {
           state = state.copyWith(phase: ReportPhase.stabilizing);
           _startStabilizationCountdown();
@@ -134,7 +146,15 @@ class ReportController extends Notifier<ReportState> {
     });
   }
 
+  /// Public stop — cancels measurement and returns to idle.
+  void stopMeasurement() {
+    _stopMeasurement();
+    state = state.copyWith(phase: ReportPhase.idle, elapsedSeconds: 0);
+  }
+
   void _stopMeasurement() {
+    _elapsedTimer?.cancel();
+    _elapsedTimer = null;
     _sub?.cancel();
     _sub = null;
     _meter = null; // NoiseMeter released — no audio file ever created

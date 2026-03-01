@@ -8,6 +8,8 @@ import '../../features/ranking/presentation/ranking_screen.dart';
 import '../../features/report/presentation/report_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/explore/presentation/spot_detail_screen.dart';
+import '../../features/map/domain/spot_model.dart';
 import '../services/supabase_service.dart';
 import '../constants/app_colors.dart';
 
@@ -83,6 +85,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/settings',
             name: 'settings',
             builder: (context, state) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/spot/:id',
+            name: 'spot',
+            builder: (context, state) {
+              final spot = state.extra as SpotModel;
+              return SpotDetailScreen(spot: spot);
+            },
           ),
         ],
       ),

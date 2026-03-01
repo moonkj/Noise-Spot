@@ -1,19 +1,20 @@
-# Noise Spot (노이즈스팟) — CLAUDE.md
+# Cafe Vibe (카페바이브) — CLAUDE.md
 
 ## Project Overview
 실시간 소음 수치(dB)와 스티커 평가를 결합한 지도 기반 로컬 소음 정보 공유 플랫폼.
-**슬로건**: 시끄러운 도시 속, 나만의 고요한 스팟 찾기
+**슬로건**: 시끄러운 도시 속, 나만의 고요한 카페 찾기
 **브랜드 콘셉트**: Frequency of Calm — 거친 파형 → 부드러운 곡선 → 점(Spot)으로 수렴
-
+**구현컨셉 context.md 참조**
+**코딩 진행시 컨셉 유지 할 것**
 ---
 
 ## Project Structure
 
 ```
-noise_spot/
+cafe_vibe/
 ├── lib/
 │   ├── main.dart                          # 앱 진입점 (Supabase 초기화)
-│   ├── app.dart                           # NoiseSpotApp (MaterialApp.router)
+│   ├── app.dart                           # CafeVibeApp (MaterialApp.router)
 │   ├── core/
 │   │   ├── constants/
 │   │   │   ├── app_colors.dart            # Mint→SkyBlue 팔레트, dB 색상 맵
@@ -170,7 +171,7 @@ GMSServices.provideAPIKey("YOUR_GOOGLE_MAPS_API_KEY")
 
 - [ ] **Maps SDK for iOS** 활성화
 - [ ] **Places API** 활성화
-- [ ] API 키 생성 → 번들 ID `com.noisespot` 제한 설정
+- [ ] API 키 생성 → 번들 ID `com.cafevibe` 제한 설정
 - [ ] `AppDelegate.swift`에 키 입력
 
 ---

@@ -6,9 +6,6 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/services/location_service.dart';
 import '../../../features/map/data/spots_repository.dart';
 import '../../../features/map/domain/spot_model.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../../features/map/presentation/map_controller.dart';
-import '../../../features/map/presentation/widgets/spot_marker_widget.dart';
 
 // ──────────────────────────────────────────────────────────────
 // Provider: 내 주변 3km 카페 목록 (자동 탐색)
@@ -370,34 +367,7 @@ class _CafeListTile extends StatelessWidget {
           ],
         ),
         trailing: Icon(Icons.chevron_right, color: Colors.grey.shade300),
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            builder: (ctx) => Consumer(
-              builder: (consumerCtx, ref, child) => Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: SpotInfoCard(
-                  spot: spot,
-                  onReport: () {
-                    Navigator.pop(context);
-                    context.push(
-                      '/report?spotId=${spot.id}&spotName=${Uri.encodeComponent(spot.name)}',
-                    );
-                  },
-                  onViewMap: () {
-                    ref.read(mapFocusProvider.notifier).focus(
-                      LatLng(spot.lat, spot.lng),
-                    );
-                    Navigator.pop(context);
-                    context.go('/map');
-                  },
-                ),
-              ),
-            ),
-          );
-        },
+        onTap: () => context.push('/spot/${spot.id}', extra: spot),
       ),
     );
   }

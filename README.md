@@ -1,4 +1,4 @@
-# noise_spot
+# cafe_vibe
 
 A new Flutter project.
 
