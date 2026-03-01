@@ -28,18 +28,20 @@ class PlaceLatLng {
   const PlaceLatLng({required this.lat, required this.lng});
 }
 
-/// A discovered place with coordinates — used for brand cafe seeding.
+/// A discovered place with coordinates — used for cafe seeding.
 class PlaceResult {
   final String placeId;
   final String name;
   final double lat;
   final double lng;
+  final String? formattedAddress;
 
   const PlaceResult({
     required this.placeId,
     required this.name,
     required this.lat,
     required this.lng,
+    this.formattedAddress,
   });
 }
 
@@ -204,6 +206,77 @@ class PlacesService {
       return brandCafes;
     } catch (e) {
       debugPrint('[Places] nearbyBrandCafes error: $e');
+      return [];
+    }
+  }
+
+  /// Returns ALL cafes near [lat]/[lng] (no brand filter), up to 3 pages (60 results).
+  /// Includes `formattedAddress` via Place Details when available from the Nearby response.
+  /// [radiusMeters] defaults to 3 km.
+  Future<List<PlaceResult>> nearbyCafes({
+    required double lat,
+    required double lng,
+    int radiusMeters = 3000,
+  }) async {
+    try {
+      final all = <PlaceResult>[];
+      String? pageToken;
+      int page = 0;
+
+      do {
+        final params = <String, String>{
+          'location': '$lat,$lng',
+          'radius': '$radiusMeters',
+          'type': 'cafe',
+          'key': _mapsApiKey,
+          'language': 'ko',
+          'pagetoken': ?pageToken,
+        };
+
+        final uri = Uri.https(
+          'maps.googleapis.com',
+          '/maps/api/place/nearbysearch/json',
+          params,
+        );
+
+        final response =
+            await _client.get(uri).timeout(const Duration(seconds: 10));
+        if (response.statusCode != 200) break;
+
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final status = data['status'] as String?;
+        if (status != 'OK' && status != 'ZERO_RESULTS') break;
+
+        final results = data['results'] as List<dynamic>? ?? [];
+        for (final r in results) {
+          final name = r['name'] as String? ?? '';
+          final geo = (r['geometry'] as Map<String, dynamic>?)?['location']
+              as Map<String, dynamic>?;
+          if (geo == null) continue;
+
+          final vicinity = r['vicinity'] as String?;
+          all.add(PlaceResult(
+            placeId: r['place_id'] as String,
+            name: name,
+            lat: (geo['lat'] as num).toDouble(),
+            lng: (geo['lng'] as num).toDouble(),
+            formattedAddress: vicinity,
+          ));
+        }
+
+        pageToken = data['next_page_token'] as String?;
+        page++;
+
+        // Google requires a short delay before next page token is valid
+        if (pageToken != null && page < 3) {
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      } while (pageToken != null && page < 3);
+
+      debugPrint('[Places] nearbyCafes: ${all.length} results ($page pages)');
+      return all;
+    } catch (e) {
+      debugPrint('[Places] nearbyCafes error: $e');
       return [];
     }
   }

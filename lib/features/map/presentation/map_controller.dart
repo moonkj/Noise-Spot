@@ -51,8 +51,7 @@ class MapState {
 /// Riverpod 3.x Notifier (replaces deprecated StateNotifier)
 class MapController extends Notifier<MapState> {
   Timer? _debounceTimer;
-  final _boundsCache = BoundsCache();
-  // Brand cafe discovery uses a separate cache with 30min TTL to limit API usage
+  // Discovery cache: 30min TTL to limit Places API calls per area
   final _discoveryCache = BoundsCache(ttlSeconds: 1800);
   GoogleMapController? mapController;
 
@@ -70,6 +69,8 @@ class MapController extends Notifier<MapState> {
       final position = await LocationService.getCurrentPosition();
       state = state.copyWith(userPosition: position);
       await _loadSpots(lat: position.latitude, lng: position.longitude);
+      // Proactively discover nearby cafes on first launch (background, non-blocking)
+      unawaited(_discoverNearbyCafes(lat: position.latitude, lng: position.longitude));
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }
@@ -85,30 +86,29 @@ class MapController extends Notifier<MapState> {
       () async {
         final center = _boundsCenter(bounds);
 
-        // Discover brand cafes (background, throttled to 30min per area)
+        // Discover nearby cafes (background, throttled to 30min per area)
         if (!_discoveryCache.isCached(bounds)) {
           _discoveryCache.set(bounds);
-          unawaited(_discoverBrandCafes(lat: center.latitude, lng: center.longitude));
+          unawaited(_discoverNearbyCafes(lat: center.latitude, lng: center.longitude));
         }
 
-        // Load spots from DB (debounced, skips cached bounds)
-        if (_boundsCache.isCached(bounds)) return;
-        _boundsCache.set(bounds);
+        // Always reload spots from DB on camera idle — fast PostGIS query,
+        // no bounds cache needed (global state must reflect current map area)
         await _loadSpots(lat: center.latitude, lng: center.longitude);
       },
     );
   }
 
-  /// Queries Google Places Nearby Search for brand cafes, upserts new ones to DB,
+  /// Queries Google Places Nearby Search for ALL cafes within 3km, upserts new ones to DB,
   /// then refreshes the map if new spots were added.
-  Future<void> _discoverBrandCafes({
+  Future<void> _discoverNearbyCafes({
     required double lat,
     required double lng,
   }) async {
     try {
       final places = await ref
           .read(placesServiceProvider)
-          .nearbyBrandCafes(lat: lat, lng: lng);
+          .nearbyCafes(lat: lat, lng: lng);
       if (places.isEmpty) return;
 
       final created = await ref
@@ -116,11 +116,11 @@ class MapController extends Notifier<MapState> {
           .upsertBrandSpots(places);
 
       if (created > 0) {
-        // New brand cafes added — refresh map spots
+        // New cafes added — refresh map spots
         await _loadSpots(lat: lat, lng: lng);
       }
     } catch (e) {
-      debugPrint('[MapController] brand discovery error: $e');
+      debugPrint('[MapController] cafe discovery error: $e');
     }
   }
 
@@ -144,13 +144,11 @@ class MapController extends Notifier<MapState> {
       activeFilter: isToggle ? null : filter,
       clearFilter: isToggle,
     );
-    _boundsCache.clear();
     final pos = state.userPosition;
     if (pos != null) _loadSpots(lat: pos.latitude, lng: pos.longitude);
   }
 
   void refreshLocation() {
-    _boundsCache.clear();
     _initLocation();
   }
 

@@ -6,7 +6,7 @@ class MapConstants {
   static const double maxRadiusMeters = 5000.0;
 
   // Reporting proximity gate
-  static const double reportMaxDistanceMeters = 100.0;
+  static const double reportMaxDistanceMeters = 25.0;
 
   // Camera idle debounce
   static const int cameraIdleDebounceMs = 300;

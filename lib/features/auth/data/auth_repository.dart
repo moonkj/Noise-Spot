@@ -10,7 +10,7 @@ class AuthRepository {
   Future<void> signInWithGoogle() async {
     await _client.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'com.noisespot.noisespot://login-callback',
+      redirectTo: 'com.cafevibe.cafevibe://login-callback',
       authScreenLaunchMode: LaunchMode.externalApplication,
     );
   }
@@ -19,7 +19,7 @@ class AuthRepository {
   Future<void> signInWithKakao() async {
     await _client.auth.signInWithOAuth(
       OAuthProvider.kakao,
-      redirectTo: 'com.noisespot.noisespot://login-callback',
+      redirectTo: 'com.cafevibe.cafevibe://login-callback',
       authScreenLaunchMode: LaunchMode.externalApplication,
     );
   }

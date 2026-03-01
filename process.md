@@ -713,6 +713,58 @@ xcrun altool --upload-app --type ios -f build/ios/ipa/*.ipa \
 
 ---
 
+### Phase 16: 지도 카페 발견 시스템 — 2026-03-01
+
+#### nearbyCafes() — 브랜드 무관 전체 카페 발견
+- [x] `lib/core/services/places_service.dart`
+  - `PlaceResult`에 `formattedAddress: String?` 필드 추가
+  - `nearbyCafes(lat, lng, radiusMeters=3000)` 추가 — 브랜드 필터 없음, `type=cafe` 페이지네이션 3페이지(2초 딜레이), `vicinity` → `formattedAddress`
+  - lint 수정: `'pagetoken': ?pageToken`, 불필요한 string interpolation 중괄호 제거
+- [x] `lib/features/map/data/spots_repository.dart`
+  - `upsertBrandSpots()` — `formattedAddress != null`이면 `formatted_address` 컬럼 포함
+- [x] `lib/features/map/presentation/map_controller.dart`
+  - `_discoverBrandCafes()` → `_discoverNearbyCafes()` 이름 변경
+  - `nearbyCafes()` 사용 (브랜드 15종 필터 제거)
+  - `_initLocation()`에서 GPS 확정 후 `unawaited(_discoverNearbyCafes())` 즉시 호출
+
+#### DB 수정 — Migration 003
+- [x] `supabase/migrations/003_fix_place_id_constraint.sql` 신규
+  - `idx_spots_place_id` partial index 제거 → `ON CONFLICT (google_place_id)` 작동 불가 원인
+  - `spots_google_place_id_key` UNIQUE 제약 추가 (partial → full UNIQUE으로 교체)
+  - `spots_insert_anon` RLS 정책 추가 (`FOR INSERT TO anon WITH CHECK (true)`)
+    - 원인: `MapController.build()` 시 익명 인증 세션 미확립 → anon role → 기존 `spots_insert_auth` 정책이 authenticated만 허용하여 42501 RLS 에러
+- [x] `supabase db push` 로 migration 003 적용 완료
+
+#### BoundsCache 제거 — 마커 사라짐 버그
+- [x] `lib/features/map/presentation/map_controller.dart`
+  - `_boundsCache = BoundsCache()` 완전 제거
+  - `onCameraIdle()` — bounds cache 체크 없이 매번 `_loadSpots()` 호출
+  - `setFilter()` / `refreshLocation()`에서 `_boundsCache.clear()` 제거
+  - **원인**: pan → 다른 영역 → spots 대체 → 원래 영역 복귀 시 캐시 hit → `_loadSpots()` 건너뜀 → 빈 state 유지
+  - PostGIS 쿼리 속도가 충분히 빠르므로 캐시 불필요
+
+---
+
+### Phase 17: 리포트 버그 수정 — 2026-03-01
+
+#### 근접성 검증 미작동 버그 (2개소)
+**버그 1: SpotInfoCard → report 라우트에 lat/lng 누락**
+- `map_screen.dart` line 217: `onReport` 콜백에 `&lat=&lng=` 미포함 → `_spotLat/Lng = null` → `verifyProximity()` 조기 반환 `true`
+- [x] `&lat=${_selectedSpot!.lat}&lng=${_selectedSpot!.lng}` 추가
+
+**버그 2: 검색 → 기존 스팟 경로에 lat/lng 누락**
+- `map_screen.dart` `_onMeasureSearchedPlace()`: `existingSpotId != null` 분기에서 lat/lng 미전달
+- [x] `&lat=${latLng.lat}&lng=${latLng.lng}` 추가 (latLng 파라미터 이미 있음)
+
+#### 이전 측정 결과 유지 버그
+- **원인**: `reportControllerProvider`는 전역 `NotifierProvider` — `build()` 1회 호출, `initialize()`가 state.phase를 초기화하지 않음
+- [x] `report_controller.dart initialize()` — `_stopMeasurement()` + `state = const ReportState()` 추가
+
+#### 근접성 거리 조정
+- [x] `map_constants.dart` `reportMaxDistanceMeters`: 100.0 → 25.0 (최종)
+
+---
+
 ### Phase 13: App Store 출시 준비
 
 | 상태 | 작업 |

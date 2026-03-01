@@ -61,6 +61,8 @@ class SpotsRepository {
               'average_db': 0,
               'report_count': 0,
               'trust_score': 0,
+              if (p.formattedAddress != null)
+                'formatted_address': p.formattedAddress,
             })
         .toList();
 

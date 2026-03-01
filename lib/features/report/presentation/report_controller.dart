@@ -72,11 +72,14 @@ class ReportController extends Notifier<ReportState> {
     double? lat,
     double? lng,
   }) {
+    _stopMeasurement();
     _spotId = spotId;
     _spotName = spotName;
     _googlePlaceId = googlePlaceId;
     _spotLat = lat;
     _spotLng = lng;
+    // Reset state for each new report session
+    state = const ReportState();
   }
 
   /// Update the spot name (used when user types a name for a new spot).

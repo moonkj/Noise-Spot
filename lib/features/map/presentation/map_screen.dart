@@ -216,7 +216,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 spot: _selectedSpot!,
                 onReport: () {
                   context.push(
-                    '/report?spotId=${_selectedSpot!.id}&spotName=${Uri.encodeComponent(_selectedSpot!.name)}',
+                    '/report'
+                    '?spotId=${_selectedSpot!.id}'
+                    '&spotName=${Uri.encodeComponent(_selectedSpot!.name)}'
+                    '&lat=${_selectedSpot!.lat}'
+                    '&lng=${_selectedSpot!.lng}',
                   );
                 },
               ),
@@ -392,9 +396,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (!mounted) return;
 
     if (existingSpotId != null) {
-      // Spot exists → go directly to report with spotId
+      // Spot exists → go directly to report with spotId + coordinates for proximity check
       context.push(
-        '/report?spotId=$existingSpotId&spotName=${Uri.encodeComponent(prediction.mainText)}',
+        '/report'
+        '?spotId=$existingSpotId'
+        '&spotName=${Uri.encodeComponent(prediction.mainText)}'
+        '&lat=${latLng.lat}'
+        '&lng=${latLng.lng}',
       );
     } else {
       // New spot → pass placeId + coordinates for spot creation on submit
