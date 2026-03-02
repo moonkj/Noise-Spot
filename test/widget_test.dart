@@ -1,4 +1,4 @@
-// Noise Spot — placeholder widget test
+// Cafe Vibe — placeholder widget test
 // Real tests live in test/core/ and test/features/
 // See process.md for TDD coverage targets
 

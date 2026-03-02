@@ -48,7 +48,7 @@ app.*.map.json
 ios/Pods/
 ios/.symlinks/
 
-# Noise Spot — secrets (never commit)
+# Cafe Vibe — secrets (never commit)
 .env
 *.env
 dart_defines.json

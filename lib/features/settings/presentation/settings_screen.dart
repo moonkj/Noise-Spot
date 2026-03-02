@@ -352,7 +352,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   Future<void> _showPrivacyNotice(BuildContext context) async {
     final uri = Uri.parse(
-      'https://moonkj.github.io/Noise-Spot/docs/privacy-policy.html',
+      'https://moonkj.github.io/Vibe-cafe/docs/privacy-policy.html',
     );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

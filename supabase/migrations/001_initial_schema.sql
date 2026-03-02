@@ -1,5 +1,5 @@
 -- ============================================================
--- Noise Spot — Initial Schema Migration
+-- Cafe Vibe — Initial Schema Migration
 -- Run this in: Supabase Dashboard → SQL Editor
 -- Prerequisites: Enable PostGIS extension first (Extensions tab)
 -- ============================================================

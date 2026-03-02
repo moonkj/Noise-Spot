@@ -633,9 +633,9 @@ Phase 13: App Store 준비      ████████░░░░  65% 🔄 (
 ### 🟠 Step 4: App Store 준비 (App Store Connect 설정)
 
 #### ✅ 4-A: GitHub Pages 개인정보처리방침 URL 활성화 — 완료 (2026-03-01)
-- `gh api repos/moonkj/Noise-Spot/pages --method POST -f 'source[branch]=main' -f 'source[path]=/docs'` 실행
-- URL 활성화: `https://moonkj.github.io/Noise-Spot/` (빌드 완료까지 수 분 소요)
-- App Store Connect 등록 URL: `https://moonkj.github.io/Noise-Spot/docs/privacy-policy.html`
+- `gh api repos/moonkj/Vibe-cafe/pages --method POST -f 'source[branch]=main' -f 'source[path]=/docs'` 실행
+- URL 활성화: `https://moonkj.github.io/Vibe-cafe/` (빌드 완료까지 수 분 소요)
+- App Store Connect 등록 URL: `https://moonkj.github.io/Vibe-cafe/docs/privacy-policy.html`
 
 #### 4-B: App Store Connect 앱 정보 입력
 
@@ -645,8 +645,8 @@ Phase 13: App Store 준비      ████████░░░░  65% 🔄 (
 | 부제목 | 카페 소음 지도 |
 | 카테고리 | Travel (주), Lifestyle (부) |
 | 연령 등급 | 4+ |
-| 개인정보처리방침 URL | https://moonkj.github.io/Noise-Spot/docs/privacy-policy.html |
-| 지원 URL | https://github.com/moonkj/Noise-Spot/issues |
+| 개인정보처리방침 URL | https://moonkj.github.io/Vibe-cafe/docs/privacy-policy.html |
+| 지원 URL | https://github.com/moonkj/Vibe-cafe/issues |
 | 키워드 (한) | 카페,소음,조용한카페,카페지도,소음측정 |
 | 키워드 (영) | cafe,noise,quiet,map,sound |
 
@@ -1070,7 +1070,7 @@ xcrun altool --upload-app --type ios -f build/ios/ipa/*.ipa \
 |------|------|
 | ✅ | 개인정보처리방침 HTML 작성 (`docs/privacy-policy.html`) — GitHub Pages 배포 예정 |
 | ✅ | IPA 빌드 성공 (`flutter build ipa`) |
-| ✅ | GitHub Pages 활성화 — `moonkj.github.io/Noise-Spot/docs/privacy-policy.html` |
+| ✅ | GitHub Pages 활성화 — `moonkj.github.io/Vibe-cafe/docs/privacy-policy.html` |
 | ⏳ | App Store Connect — 앱 정보 입력 (한국어/영어) |
 | ⏳ | 스크린샷 — 6.7" / 6.5" / 5.5" (지도, 리포팅, 프로필 화면) |
 | ✅ | IPA 빌드 성공 — `build/ios/ipa/*.ipa` (57.9MB) |
