@@ -7,6 +7,8 @@ import '../../../core/utils/level_service.dart';
 import '../../map/domain/spot_model.dart';
 import '../../report/data/report_repository.dart';
 import '../../report/domain/report_model.dart';
+import '../data/profile_repository.dart';
+import 'nickname_setup_sheet.dart';
 
 final _myStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.watch(reportRepositoryProvider).getMyStats();
@@ -16,14 +18,76 @@ final _myReportsProvider = FutureProvider.autoDispose<List<ReportModel>>((ref) {
   return ref.watch(reportRepositoryProvider).getMyReports();
 });
 
-class ProfileScreen extends ConsumerWidget {
+/// Loads the nickname from the server (user_profiles table).
+final _serverNicknameProvider = FutureProvider.autoDispose<String?>((ref) {
+  return ref.watch(profileRepositoryProvider).getMyNickname();
+});
+
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  /// 닉네임 설정 시트가 이미 표시된 적 있는지 추적 (중복 표시 방지)
+  bool _sheetShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNicknamePrompt();
+  }
+
+  Future<void> _checkNicknamePrompt() async {
+    final shown = await NicknameNotifier.hasShownPrompt();
+    if (mounted && shown) setState(() => _sheetShown = true);
+  }
+
+  void _showNicknameSheet() {
+    if (_sheetShown) return;
+    setState(() => _sheetShown = true);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const NicknameSetupSheet(),
+    ).then((_) {
+      // 시트 닫힌 후 닉네임이 여전히 없으면 다시 표시 허용
+      if (!mounted) return;
+      if (ref.read(nicknameProvider) == null) {
+        setState(() => _sheetShown = false);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statsAsync = ref.watch(_myStatsProvider);
     final reportsAsync = ref.watch(_myReportsProvider);
     final nickname = ref.watch(nicknameProvider);
+
+    // 서버 닉네임 로드 시: 로컬 동기화 or 없으면 시트 표시
+    // 딜레이(300ms)로 NicknameNotifier._load() 레이스 컨디션 방지
+    ref.listen(_serverNicknameProvider, (_, next) {
+      next.whenData((serverNick) {
+        if (serverNick != null && serverNick.isNotEmpty) {
+          if (ref.read(nicknameProvider) == null) {
+            ref.read(nicknameProvider.notifier).set(serverNick);
+          }
+        } else {
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (!mounted) return;
+            if (ref.read(nicknameProvider) != null) return;
+            _showNicknameSheet();
+          });
+        }
+      });
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F1),
@@ -134,7 +198,10 @@ class _ProfileHeader extends StatelessWidget {
   final String? nickname;
   final UserLevel level;
 
-  const _ProfileHeader({required this.nickname, required this.level});
+  const _ProfileHeader({
+    required this.nickname,
+    required this.level,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -32,6 +32,7 @@ class ReportScreen extends ConsumerStatefulWidget {
 
 class _ReportScreenState extends ConsumerState<ReportScreen> {
   late final TextEditingController _nameController;
+  bool _isCheckingLocation = false;
 
   bool get _isNewSpot => widget.spotId == null || widget.spotId!.isEmpty;
 
@@ -105,14 +106,23 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             if (_isNewSpot) controller.updateSpotName(_nameController.text);
 
             final isNear = await controller.verifyProximity();
-            if (!isNear && mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(AppStrings.reportTooFar),
-                  backgroundColor: AppColors.dbLoud,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+            // Guard return OUTSIDE the mounted check so it always runs
+            if (!isNear) {
+              if (mounted) {
+                await showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text(AppStrings.proximityDialogTitle),
+                    content: const Text(AppStrings.proximityDialogSubmit),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('확인'),
+                      ),
+                    ],
+                  ),
+                );
+              }
               return;
             }
             await controller.submitWithSticker(sticker);
@@ -137,8 +147,37 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
             child: _StartButton(
-              onTap: () =>
-                  ref.read(reportControllerProvider.notifier).startMeasurement(),
+              isLoading: _isCheckingLocation,
+              onTap: () async {
+                final controller = ref.read(reportControllerProvider.notifier);
+                // Existing spots: check proximity before even starting measurement
+                if (!_isNewSpot) {
+                  setState(() => _isCheckingLocation = true);
+                  try {
+                    final isNear = await controller.verifyProximity();
+                    if (!isNear) {
+                      if (!mounted) return;
+                      await showDialog<void>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text(AppStrings.proximityDialogTitle),
+                          content: const Text(AppStrings.proximityDialogMeasure),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: const Text('확인'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
+                  } finally {
+                    if (mounted) setState(() => _isCheckingLocation = false);
+                  }
+                }
+                controller.startMeasurement();
+              },
             ),
           ),
         ),
@@ -360,25 +399,42 @@ class _TipCard extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _StartButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _StartButton({required this.onTap});
+  final bool isLoading;
+  const _StartButton({required this.onTap, this.isLoading = false});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: const Icon(Icons.graphic_eq_rounded, size: 20),
-        label: const Text('측정 시작',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.mintGreen,
+          disabledBackgroundColor: AppColors.mintGreen.withValues(alpha: 0.6),
           foregroundColor: Colors.white,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 0,
         ),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.graphic_eq_rounded, size: 20),
+                  SizedBox(width: 8),
+                  Text('측정 시작',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ],
+              ),
       ),
     );
   }

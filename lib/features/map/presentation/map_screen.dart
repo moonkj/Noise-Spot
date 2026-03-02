@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../../core/constants/admin_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/map_constants.dart';
 import '../../../core/services/places_service.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../../core/utils/db_classifier.dart';
 import '../data/spots_repository.dart';
 import '../domain/spot_model.dart';
@@ -30,6 +31,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // Search result selection state
   PlacePrediction? _searchPrediction;
   PlaceLatLng? _searchLatLng;
+  Marker? _searchMarker;
 
   // Custom markers (async built from SpotMarkerWidget)
   Set<Marker> _markers = {};
@@ -39,8 +41,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   SpotDisplayMode _lastDisplayMode = SpotDisplayMode.hidden;
   bool _hasMovedToUser = false;
 
-  // Map custom style JSON
-  String? _mapStyle;
+  static const _cloudMapId = 'd3c574b4a49a45dc1dbda511';
 
   static const _initialCamera = CameraPosition(
     target: LatLng(MapConstants.defaultLat, MapConstants.defaultLng),
@@ -48,17 +49,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   );
 
   bool get _hasBottomCard => _selectedSpot != null || _searchPrediction != null;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMapStyle();
-  }
-
-  Future<void> _loadMapStyle() async {
-    final style = await rootBundle.loadString('assets/map_style.json');
-    if (mounted) setState(() => _mapStyle = style);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +101,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // Google Map
           GoogleMap(
             initialCameraPosition: _initialCamera,
-            style: _mapStyle,
+            cloudMapId: _cloudMapId,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
@@ -140,13 +130,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 );
               }
             },
-            markers: _markers,
-            circles: _circles,
+            markers: {..._markers, ?_searchMarker},
+            circles: {
+                ..._circles,
+                if (mapState.userPosition != null && _currentZoom >= MapConstants.zoomMinLoad)
+                  Circle(
+                    circleId: const CircleId('_radius'),
+                    center: LatLng(
+                      mapState.userPosition!.latitude,
+                      mapState.userPosition!.longitude,
+                    ),
+                    radius: MapConstants.defaultRadiusMeters,
+                    fillColor: AppColors.mintGreen.withValues(alpha: 0.06),
+                    strokeColor: AppColors.mintGreen.withValues(alpha: 0.35),
+                    strokeWidth: 1,
+                  ),
+              },
             onTap: (_) => setState(() {
               _selectedSpot = null;
               _searchPrediction = null;
               _searchLatLng = null;
+              _searchMarker = null;
             }),
+            onLongPress: _isAdmin ? _onAdminLongPress : null,
           ),
 
           // Empty state overlay (no spots in this area)
@@ -223,6 +229,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     '&lng=${_selectedSpot!.lng}',
                   );
                 },
+                onDetail: () {
+                  context.push('/spot/${_selectedSpot!.id}', extra: _selectedSpot!);
+                },
               ),
             ),
 
@@ -238,6 +247,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 onDismiss: () => setState(() {
                   _searchPrediction = null;
                   _searchLatLng = null;
+                  _searchMarker = null;
                 }),
                 onMeasure: _onMeasureSearchedPlace,
               ),
@@ -255,6 +265,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   _selectedSpot = null;
                   _searchPrediction = null;
                   _searchLatLng = null;
+                  _searchMarker = null;
                 });
               },
               backgroundColor: Colors.white,
@@ -339,6 +350,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           _selectedSpot = spot;
           _searchPrediction = null;
           _searchLatLng = null;
+          _searchMarker = null;
         }),
       ));
     }
@@ -361,6 +373,67 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
+  bool get _isAdmin {
+    final uid = ref.read(authRepositoryProvider).currentUser?.id;
+    return uid != null && AdminConfig.adminUserIds.contains(uid);
+  }
+
+  void _onAdminLongPress(LatLng position) {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('카페 직접 추가'),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '카페 이름',
+            hintText: '예) 스타벅스 청주점',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(dialogCtx);
+              try {
+                await ref.read(spotsRepositoryProvider).createSpot(
+                      name: name,
+                      googlePlaceId: null,
+                      lat: position.latitude,
+                      lng: position.longitude,
+                    );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('"$name" 추가 완료')),
+                  );
+                  // Reload spots
+                  final pos = ref.read(mapControllerProvider).userPosition;
+                  if (pos != null) {
+                    ref.read(mapControllerProvider.notifier).refreshLocation();
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('추가 실패. 다시 시도하세요.')),
+                  );
+                }
+              }
+            },
+            child: const Text('추가', style: TextStyle(color: AppColors.mintGreen)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onPlaceSelected(PlacePrediction prediction, PlaceLatLng latLng) {
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(
@@ -372,6 +445,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _selectedSpot = null;
       _searchPrediction = prediction;
       _searchLatLng = latLng;
+      _searchMarker = Marker(
+        markerId: const MarkerId('_search_result'),
+        position: LatLng(latLng.lat, latLng.lng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      );
     });
     // Trigger spot reload at new location
     WidgetsBinding.instance.addPostFrameCallback((_) async {

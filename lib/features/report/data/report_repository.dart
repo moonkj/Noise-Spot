@@ -16,10 +16,6 @@ class ReportRepository {
     required double measuredDb,
     required StickerType sticker,
   }) async {
-    // 익명 세션이 없으면 자동으로 sign-in 시도 (배경 로그인이 아직 완료되지 않은 경우 대비)
-    if (_client.auth.currentUser == null) {
-      await _client.auth.signInAnonymously();
-    }
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('로그인이 필요합니다.');
 

@@ -153,6 +153,40 @@ class PlacesService {
     }
   }
 
+  /// Returns lat/lng for a given [address] string using Google Geocoding API.
+  Future<PlaceLatLng?> geocodeAddress(String address) async {
+    if (address.trim().isEmpty) return null;
+    try {
+      final uri = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/geocode/json',
+        {
+          'address': address,
+          'key': _mapsApiKey,
+          'language': 'ko',
+          'region': 'kr',
+        },
+      );
+      final response = await _client.get(uri).timeout(const Duration(seconds: 6));
+      if (response.statusCode != 200) return null;
+
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      if (data['status'] != 'OK') return null;
+
+      final results = data['results'] as List<dynamic>?;
+      if (results == null || results.isEmpty) return null;
+
+      final loc = ((results[0] as Map)['geometry'] as Map)['location'] as Map;
+      return PlaceLatLng(
+        lat: (loc['lat'] as num).toDouble(),
+        lng: (loc['lng'] as num).toDouble(),
+      );
+    } catch (e) {
+      debugPrint('[Places] geocodeAddress error: $e');
+      return null;
+    }
+  }
+
   /// Returns brand cafes near [lat]/[lng] using Google Places Nearby Search.
   /// Filters results to known brand names only.
   /// [radiusMeters] defaults to 3 km.

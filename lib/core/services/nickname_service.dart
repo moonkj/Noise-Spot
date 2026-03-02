@@ -5,6 +5,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Reactive — UI updates automatically on [set] or [clear].
 class NicknameNotifier extends Notifier<String?> {
   static const _key = 'user_nickname';
+  static const _promptKey = 'nickname_prompt_shown';
+
+  static Future<bool> hasShownPrompt() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_promptKey) ?? false;
+  }
+
+  static Future<void> markPromptShown() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_promptKey, true);
+  }
+
+  /// Clears nickname and prompt flag — call on account deletion.
+  static Future<void> resetAll() async {
+    final p = await SharedPreferences.getInstance();
+    await p.remove(_key);
+    await p.remove(_promptKey);
+  }
 
   @override
   String? build() {

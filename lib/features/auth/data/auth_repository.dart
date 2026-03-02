@@ -1,10 +1,42 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/supabase_service.dart';
 
 class AuthRepository {
   final SupabaseClient _client;
   AuthRepository(this._client);
+
+  /// Apple Sign In (iOS/macOS only — nonce-based PKCE for Supabase)
+  Future<void> signInWithApple() async {
+    final rawNonce = _generateNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: credential.identityToken!,
+      nonce: rawNonce,
+    );
+  }
+
+  String _generateNonce([int length = 32]) {
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => chars[random.nextInt(chars.length)])
+        .join();
+  }
 
   /// Sign in with Google via Supabase OAuth (browser redirect flow).
   Future<void> signInWithGoogle() async {
@@ -35,11 +67,13 @@ class AuthRepository {
     await _client.auth.signOut();
   }
 
-  /// Deletes the current user's reports then signs out.
+  /// Deletes all user data then signs out.
   Future<void> deleteAccount() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return;
     await _client.from('reports').delete().eq('user_id', uid);
+    await _client.from('user_profiles').delete().eq('user_id', uid);
+    await _client.from('user_stats').delete().eq('user_id', uid);
     await _client.auth.signOut();
   }
 

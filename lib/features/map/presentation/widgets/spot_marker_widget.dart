@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -26,20 +27,70 @@ class SpotMarkerWidget extends StatelessWidget {
     bool isReduced = false,
   }) async {
     final logicalSize = isReduced ? 24.0 : 32.0;
-    final ps = logicalSize * pixelRatio; // physical size
-    final center = Offset(ps / 2, ps / 2);
+    final ps = logicalSize * pixelRatio;
     final bw = (isReduced ? 1.5 : spot.markerBorderWidth) * pixelRatio;
     final innerRadius = ps / 2 - bw / 2;
     final color = spot.reportCount == 0
         ? const Color(0xFFBBBBBB)
         : DbClassifier.colorFromDb(spot.averageDb);
 
+    // Name label above circle (individual mode only)
+    TextPainter? labelPainter;
+    double labelW = 0, labelH = 0;
+    const double padH = 6.0, padV = 3.0, gap = 3.0;
+
+    if (!isReduced) {
+      final name = spot.name.length > 12
+          ? '${spot.name.substring(0, 11)}…'
+          : spot.name;
+      labelPainter = TextPainter(
+        text: TextSpan(
+          text: name,
+          style: TextStyle(
+            color: const Color(0xFF333333),
+            fontSize: 9.5 * pixelRatio,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      labelPainter.layout();
+      labelW = labelPainter.width + padH * 2 * pixelRatio;
+      labelH = labelPainter.height + padV * 2 * pixelRatio;
+    }
+
+    final canvasW = math.max(ps, labelW);
+    final canvasH = isReduced ? ps : labelH + gap * pixelRatio + ps;
+    final circleTop = isReduced ? 0.0 : labelH + gap * pixelRatio;
+    final circleCenter = Offset(canvasW / 2, circleTop + ps / 2);
+
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
+    // Name label pill
+    if (!isReduced && labelPainter != null) {
+      final labelLeft = (canvasW - labelW) / 2;
+      final pillRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(labelLeft, 0, labelW, labelH),
+        Radius.circular(labelH / 2),
+      );
+      canvas.drawRRect(
+        pillRect,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.12)
+          ..maskFilter =
+              ui.MaskFilter.blur(ui.BlurStyle.normal, 3 * pixelRatio),
+      );
+      canvas.drawRRect(pillRect, Paint()..color = Colors.white);
+      labelPainter.paint(
+        canvas,
+        Offset(labelLeft + padH * pixelRatio, padV * pixelRatio),
+      );
+    }
+
     // Drop shadow
     canvas.drawCircle(
-      center + Offset(0, pixelRatio),
+      circleCenter + Offset(0, pixelRatio),
       innerRadius,
       Paint()
         ..color = color.withValues(alpha: 0.35)
@@ -47,11 +98,11 @@ class SpotMarkerWidget extends StatelessWidget {
     );
 
     // Filled circle
-    canvas.drawCircle(center, innerRadius, Paint()..color = color);
+    canvas.drawCircle(circleCenter, innerRadius, Paint()..color = color);
 
     // White border
     canvas.drawCircle(
-      center,
+      circleCenter,
       innerRadius,
       Paint()
         ..color = Colors.white
@@ -74,11 +125,11 @@ class SpotMarkerWidget extends StatelessWidget {
         textDirection: TextDirection.ltr,
       );
       tp.layout();
-      tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
+      tp.paint(canvas, circleCenter - Offset(tp.width / 2, tp.height / 2));
     }
 
     final picture = recorder.endRecording();
-    final img = await picture.toImage(ps.ceil(), ps.ceil());
+    final img = await picture.toImage(canvasW.ceil(), canvasH.ceil());
     final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
     return BitmapDescriptor.bytes(
       byteData!.buffer.asUint8List(),
@@ -133,9 +184,9 @@ class SpotMarkerWidget extends StatelessWidget {
 class SpotInfoCard extends StatelessWidget {
   final SpotModel spot;
   final VoidCallback onReport;
-  final VoidCallback? onViewMap;
+  final VoidCallback? onDetail;
 
-  const SpotInfoCard({super.key, required this.spot, required this.onReport, this.onViewMap});
+  const SpotInfoCard({super.key, required this.spot, required this.onReport, this.onDetail});
 
   @override
   Widget build(BuildContext context) {
@@ -223,14 +274,14 @@ class SpotInfoCard extends StatelessWidget {
               child: const Text('지금 소음 측정하기'),
             ),
           ),
-          if (onViewMap != null) ...[
+          if (onDetail != null) ...[
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: onViewMap,
-                icon: const Icon(Icons.map_outlined, size: 18),
-                label: const Text('지도에서 보기'),
+                onPressed: onDetail,
+                icon: const Icon(Icons.info_outline, size: 18),
+                label: const Text('자세히 보기'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.mintGreen,
                   side: const BorderSide(color: AppColors.mintGreen),

@@ -92,9 +92,11 @@ class MapController extends Notifier<MapState> {
           unawaited(_discoverNearbyCafes(lat: center.latitude, lng: center.longitude));
         }
 
-        // Always reload spots from DB on camera idle — fast PostGIS query,
-        // no bounds cache needed (global state must reflect current map area)
-        await _loadSpots(lat: center.latitude, lng: center.longitude);
+        // Spots query: always from user position (3km radius from me)
+        final pos = state.userPosition;
+        if (pos != null) {
+          await _loadSpots(lat: pos.latitude, lng: pos.longitude);
+        }
       },
     );
   }

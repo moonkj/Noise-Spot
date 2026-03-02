@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/db_classifier.dart';
 import '../../../features/map/domain/spot_model.dart';
@@ -94,7 +95,11 @@ class SpotDetailScreen extends ConsumerWidget {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.ios_share_outlined, size: 22),
-                    onPressed: () {},
+                    onPressed: () => Share.share(
+                      '${spot.name}\n'
+                      '평균 소음: ${spot.averageDb.toStringAsFixed(1)}dB\n'
+                      '#CafeVibe #카페바이브 #조용한카페',
+                    ),
                   ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
@@ -839,7 +844,11 @@ class _StickyMeasureButton extends StatelessWidget {
         width: double.infinity,
         child: ElevatedButton.icon(
           onPressed: () => context.push(
-            '/report?spotId=${spot.id}&spotName=${Uri.encodeComponent(spot.name)}',
+            '/report'
+            '?spotId=${spot.id}'
+            '&spotName=${Uri.encodeComponent(spot.name)}'
+            '&lat=${spot.lat}'
+            '&lng=${spot.lng}',
           ),
           icon: const Icon(Icons.graphic_eq, size: 20),
           label: const Text(

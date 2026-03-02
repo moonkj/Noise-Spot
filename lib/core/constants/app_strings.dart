@@ -59,13 +59,20 @@ class AppStrings {
 
   // Reporting
   static const String reportTooFar =
-      '현재 위치에서 100m 이내에서만 리포팅 가능합니다.';
+      '카페 25m 이내에서만 리포팅 가능합니다.';
   static const String reportBackground =
       '앱이 활성화된 상태에서만 측정 가능합니다.';
   static const String reportInvalidDb = '측정값이 유효하지 않습니다.';
   static const String reportSuccess = '리포트가 등록되었습니다!';
   static const String measuring = '측정 중...';
   static const String measureStabilizing = '3초 안정화 중...';
+
+  // Proximity dialogs
+  static const String proximityDialogTitle = '위치 확인 필요';
+  static const String proximityDialogMeasure =
+      '카페 25m 이내에서만 측정 가능합니다.\n카페 근처로 이동해 주세요.';
+  static const String proximityDialogSubmit =
+      '카페 25m 이내에서만 리포팅 가능합니다.\n카페 근처로 이동 후 다시 시도해 주세요.';
 
   // Calibration
   static const String calibrationTitle = '마이크 초기 설정';

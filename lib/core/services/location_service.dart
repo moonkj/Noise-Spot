@@ -43,6 +43,16 @@ class LocationService {
     return distance <= MapConstants.reportMaxDistanceMeters;
   }
 
+  /// Returns the haversine distance in metres between user and target.
+  static double distanceMeters({
+    required double userLat,
+    required double userLng,
+    required double targetLat,
+    required double targetLng,
+  }) {
+    return _haversineDistance(userLat, userLng, targetLat, targetLng);
+  }
+
   /// Haversine distance in metres between two lat/lng coordinates.
   static double _haversineDistance(
     double lat1,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -34,11 +35,17 @@ class ExploreScreen extends ConsumerStatefulWidget {
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   StickerType? _activeFilter; // null = 전체
   _SortMode _sortMode = _SortMode.nearest;
+  String _searchQuery = '';
 
   List<SpotModel> _applyFilter(List<SpotModel> spots) {
-    final filtered = _activeFilter == null
-        ? spots
+    var filtered = _activeFilter == null
+        ? List<SpotModel>.from(spots)
         : spots.where((s) => s.representativeSticker == _activeFilter).toList();
+
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((s) => s.name.toLowerCase().contains(q)).toList();
+    }
 
     if (_sortMode == _SortMode.popular) {
       filtered.sort((a, b) => b.reportCount.compareTo(a.reportCount));
@@ -50,6 +57,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     final spotsAsync = ref.watch(_nearbySpotsProvider);
+    final userPos = ref.watch(currentPositionProvider).asData?.value;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F1),
@@ -66,6 +74,35 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 delegate: _ExploreAppBar(count: filtered.length),
                 pinned: true,
               ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                  child: TextField(
+                    onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                    decoration: InputDecoration(
+                      hintText: '카페 이름 검색',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () => setState(() => _searchQuery = ''),
+                            )
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
               _FilterRow(
                 activeFilter: _activeFilter,
                 sortMode: _sortMode,
@@ -77,7 +114,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, i) => _CafeListTile(spot: filtered[i]),
+                    (context, i) => _CafeListTile(
+                      spot: filtered[i],
+                      userPos: userPos,
+                    ),
                     childCount: filtered.length,
                   ),
                 ),
@@ -86,14 +126,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/report'),
-        backgroundColor: AppColors.mintGreen,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text(AppStrings.exploreAddCafe),
-        elevation: 4,
       ),
     );
   }
@@ -261,7 +293,20 @@ class _Chip extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────
 class _CafeListTile extends StatelessWidget {
   final SpotModel spot;
-  const _CafeListTile({required this.spot});
+  final Position? userPos;
+  const _CafeListTile({required this.spot, this.userPos});
+
+  String? _distanceLabel() {
+    if (userPos == null) return null;
+    final m = LocationService.distanceMeters(
+      userLat: userPos!.latitude,
+      userLng: userPos!.longitude,
+      targetLat: spot.lat,
+      targetLng: spot.lng,
+    );
+    if (m < 1000) return '${m.round()}m';
+    return '${(m / 1000).toStringAsFixed(1)}km';
+  }
 
   /// 카페 이름 첫 글자의 배경 색상 (일관된 색상)
   Color _avatarColor() {
@@ -281,6 +326,7 @@ class _CafeListTile extends StatelessWidget {
     final sticker = spot.representativeSticker;
     final dbColor = AppColors.dbColor(spot.averageDb);
     final firstChar = spot.name.isNotEmpty ? spot.name[0] : '?';
+    final distLabel = _distanceLabel();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -362,6 +408,15 @@ class _CafeListTile extends StatelessWidget {
                   '${spot.reportCount}회 측정',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
+                if (distLabel != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.near_me_rounded, size: 12, color: Colors.grey.shade400),
+                  const SizedBox(width: 2),
+                  Text(
+                    distLabel,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                ],
               ],
             ),
           ],

@@ -1,19 +1,17 @@
-import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/services/supabase_service.dart';
+import '../../../core/services/nickname_service.dart';
 import '../data/auth_repository.dart';
 import 'widgets/wave_to_spot_painter.dart';
 
-/// Splash screen: shows brand animation for ≥ 2.6 s, then navigates to the
-/// map immediately — auth never blocks navigation.
-///
-/// [signInAnonymously] is attempted in the background so the session is ready
-/// by the time the user tries to submit a report. Retries silently on failure.
+/// Login screen: shows brand animation for 1.5 s, then fades in
+/// Apple Sign In (iOS only) and Google Sign In buttons.
+/// On successful auth, the router redirect handles navigation to /map.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -24,7 +22,9 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _waveController;
-  bool _gone = false; // prevent double navigation
+  bool _showButtons = false;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -34,9 +34,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       duration: const Duration(milliseconds: 2400),
     )..repeat();
 
-    // After 2.6 s, go to map regardless of auth state.
-    // Auth is attempted in the background.
-    Future.delayed(const Duration(milliseconds: 2600), _goToMap);
+    // Fade-in buttons after 1.5 s
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _showButtons = true);
+    });
   }
 
   @override
@@ -45,44 +46,48 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     super.dispose();
   }
 
-  void _goToMap() {
-    if (!mounted || _gone) return;
-    _gone = true;
-    // Fire-and-forget: attempt anonymous sign-in after navigating.
-    // The map is fully viewable without auth; only report submission needs it.
-    unawaited(_trySignInBackground());
-    context.go('/map');
+  Future<void> _onApple() async {
+    await NicknameNotifier.resetAll(); // clear stale local nickname from previous session
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).signInWithApple();
+      // Router redirect handles navigation
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Apple 로그인에 실패했어요. 다시 시도해 주세요.';
+        });
+      }
+    }
   }
 
-  /// Silently attempts anonymous sign-in. Retries every 10 s until it
-  /// succeeds (e.g. once network is available or Supabase enables anon auth).
-  Future<void> _trySignInBackground() async {
-    while (true) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      try {
-        await ref
-            .read(authRepositoryProvider)
-            .signInAnonymously()
-            .timeout(const Duration(seconds: 10));
-        return; // success
-      } catch (_) {
-        await Future.delayed(const Duration(seconds: 10));
+  Future<void> _onGoogle() async {
+    await NicknameNotifier.resetAll(); // clear stale local nickname from previous session
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+      // Google OAuth opens browser — router redirect handles callback
+      // Reset loading if browser closes without completing auth
+      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Google 로그인에 실패했어요. 다시 시도해 주세요.';
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // If Supabase init completes AND the user already has a stored session,
-    // the router will redirect to /map automatically — skip the 2.6 s wait.
-    ref.listen(supabaseInitProvider, (_, next) {
-      if (next.hasValue) {
-        final session =
-            ref.read(supabaseClientProvider).auth.currentSession;
-        if (session != null) _goToMap();
-      }
-    });
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
@@ -134,20 +139,68 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                     .fadeIn(delay: 700.ms, duration: 600.ms)
                     .slideY(begin: 0.2, end: 0),
                 const Spacer(flex: 3),
-                // Subtle loading indicator
-                const SizedBox(
-                  height: 52,
-                  child: Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: AppColors.mintGreen,
-                        strokeWidth: 2.5,
-                      ),
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 1800.ms, duration: 400.ms),
+                // Login buttons area
+                AnimatedOpacity(
+                  opacity: _showButtons ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 600),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 52,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.mintGreen,
+                              strokeWidth: 2.5,
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            if (_errorMessage != null) ...[
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.red.shade400,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            // Apple Sign In (iOS only)
+                            if (Platform.isIOS) ...[
+                              SignInWithAppleButton(
+                                onPressed: _onApple,
+                                style: SignInWithAppleButtonStyle.black,
+                                height: 50,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            // Google Sign In
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: OutlinedButton.icon(
+                                onPressed: _onGoogle,
+                                icon: const Icon(
+                                  Icons.g_mobiledata_rounded,
+                                  size: 22,
+                                ),
+                                label: const Text('Google로 계속하기'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF444444),
+                                  side: BorderSide(
+                                      color: Colors.grey.shade300),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  backgroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
                 const SizedBox(height: 48),
               ],
             ),

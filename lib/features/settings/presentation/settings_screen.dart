@@ -3,9 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/admin_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/services/nickname_service.dart';
-import '../../../core/services/supabase_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../admin/data/cafe_requests_repository.dart';
+import '../../../core/services/places_service.dart';
+import '../../map/data/spots_repository.dart';
+import '../../profile/data/profile_repository.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -17,11 +22,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   PermissionStatus _micStatus = PermissionStatus.denied;
   PermissionStatus _locationStatus = PermissionStatus.denied;
-
-  // 알림 설정 (UI only)
-  bool _notifyMeasurement = true;
-  bool _notifyRanking = false;
-  bool _notifyNewCafe = false;
 
   @override
   void initState() {
@@ -38,6 +38,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _locationStatus = loc;
       });
     }
+  }
+
+  bool get _isAdmin {
+    final uid = ref.read(authRepositoryProvider).currentUser?.id;
+    return uid != null && AdminConfig.adminUserIds.contains(uid);
   }
 
   @override
@@ -94,81 +99,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   onTap: () => _editNickname(context, nickname),
                 ),
-                _SettingsTile(
-                  icon: Icons.mail_outline,
-                  title: '이메일',
-                  trailing: Text(
-                    '익명 사용자',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
-                  ),
-                ),
-                _SettingsTile(
-                  icon: Icons.badge_outlined,
-                  title: '계정 유형',
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.mintGreen.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      '무료',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.mintGreen,
-                      ),
-                    ),
-                  ),
-                ),
-
                 // ── 알림 설정 ──────────────────────────────────────────
                 _SectionHeader('알림 설정'),
-                _SwitchTile(
-                  icon: Icons.notifications_outlined,
-                  title: '측정 알림',
-                  subtitle: '내 측정이 완료되면 알림',
-                  value: _notifyMeasurement,
-                  onChanged: (v) => setState(() => _notifyMeasurement = v),
-                ),
-                _SwitchTile(
-                  icon: Icons.bar_chart_outlined,
-                  title: '랭킹 변동',
-                  subtitle: '내 카페가 랭킹에 진입하면 알림',
-                  value: _notifyRanking,
-                  onChanged: (v) => setState(() => _notifyRanking = v),
-                ),
-                _SwitchTile(
-                  icon: Icons.add_location_alt_outlined,
-                  title: '새 카페 등록',
-                  subtitle: '주변에 새 카페가 등록되면 알림',
-                  value: _notifyNewCafe,
-                  onChanged: (v) => setState(() => _notifyNewCafe = v),
-                ),
-
-                // ── 앱 설정 ────────────────────────────────────────────
-                _SectionHeader('앱 설정'),
-                _SettingsTile(
-                  icon: Icons.dark_mode_outlined,
-                  title: '다크 모드',
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '준비 중',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                    ),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                _SettingsTile(
-                  icon: Icons.language_outlined,
-                  title: '언어',
-                  trailing: Text(
-                    '한국어',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                  child: Row(
+                    children: [
+                      Icon(Icons.notifications_outlined, size: 20, color: Colors.grey.shade400),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '알림 기능은 업데이트 예정이에요',
+                          style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -179,12 +129,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: '마이크',
                   subtitle: '소음 수치(dB) 측정에만 사용됩니다',
                   status: _micStatus,
+                  buttonLabel: _permissionButtonLabel(_micStatus),
                   onManage: () async {
-                    if (_micStatus.isPermanentlyDenied) {
-                      await openAppSettings();
-                    } else {
-                      await Permission.microphone.request();
-                    }
+                    await openAppSettings();
                     await _checkPermissions();
                   },
                 ),
@@ -193,19 +140,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: '위치',
                   subtitle: '주변 카페 탐색 및 측정 위치 확인에 사용됩니다',
                   status: _locationStatus,
+                  buttonLabel: _permissionButtonLabel(_locationStatus),
                   onManage: () async {
-                    if (_locationStatus.isPermanentlyDenied) {
-                      await openAppSettings();
-                    } else {
-                      await Permission.locationWhenInUse.request();
-                    }
+                    await openAppSettings();
                     await _checkPermissions();
                   },
                 ),
-
-                // ── 프리미엄 ───────────────────────────────────────────
-                _SectionHeader('프리미엄'),
-                _PremiumBanner(),
 
                 // ── 정보 ──────────────────────────────────────────────
                 _SectionHeader('정보'),
@@ -236,17 +176,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: () => showLicensePage(context: context, applicationName: 'Cafe Vibe'),
                 ),
 
-                // ── 계정 ──────────────────────────────────────────────
-                _SectionHeader('계정'),
-                _DangerTile(
+                // ── 카페 추가 요청 (일반 사용자) ────────────────────────
+                _SectionHeader('카페 추가 요청'),
+                _SettingsTile(
+                  icon: Icons.add_location_alt_outlined,
+                  title: '카페 등록 요청',
+                  subtitle: '앱에 없는 카페를 운영자에게 요청',
+                  showArrow: true,
+                  onTap: () => _showCafeRequestDialog(context),
+                ),
+
+                // ── 관리자 ─────────────────────────────────────────────
+                if (_isAdmin) ...[
+                  _SectionHeader('관리자'),
+                  _SettingsTile(
+                    icon: Icons.admin_panel_settings_outlined,
+                    title: '카페 추가 요청 목록',
+                    showArrow: true,
+                    onTap: () => _showAdminRequestsSheet(context),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.store_outlined,
+                    title: '등록된 카페 관리',
+                    subtitle: '직접 등록한 카페 수정 / 삭제',
+                    showArrow: true,
+                    onTap: () => _showAdminSpotsSheet(context),
+                  ),
+                ],
+
+                // ── 데이터 관리 ────────────────────────────────────────
+                _SectionHeader('데이터 관리'),
+                _SettingsTile(
                   icon: Icons.logout_rounded,
                   title: '로그아웃',
                   onTap: () => _confirmLogout(context),
                 ),
                 _DangerTile(
-                  icon: Icons.delete_outline_rounded,
-                  title: '회원탈퇴',
-                  onTap: () => _confirmDeleteAccount(context),
+                  icon: Icons.restore_rounded,
+                  title: '앱 데이터 초기화',
+                  onTap: () => _confirmDataReset(context),
                 ),
                 const SizedBox(height: 32),
               ],
@@ -258,16 +226,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveNickname(String newNick) async {
-    ref.read(nicknameProvider.notifier).set(newNick);
-    final userId = ref.read(supabaseClientProvider).auth.currentUser?.id;
-    if (userId != null) {
-      try {
-        await ref.read(supabaseClientProvider).rpc('upsert_user_profile', params: {
-          'p_user_id': userId,
-          'p_nickname': newNick,
-        });
-      } catch (_) {}
-    }
+    final trimmed = newNick.trim();
+    if (trimmed.length < 2) return;
+    if (!RegExp(r'^[가-힣a-zA-Z0-9]+$').hasMatch(trimmed)) return;
+    ref.read(nicknameProvider.notifier).set(trimmed);
+    ref.read(profileRepositoryProvider).upsertNickname(trimmed).catchError((_) {});
   }
 
   void _editNickname(BuildContext context, String? current) {
@@ -278,10 +241,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: const Text('닉네임 설정'),
         content: TextField(
           controller: controller,
-          maxLength: 20,
+          maxLength: 10,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: '사용할 이름을 입력하세요',
+            hintText: '2~10자 (한글, 영문, 숫자)',
             counterText: '',
           ),
           onSubmitted: (_) {
@@ -308,28 +271,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showPrivacyNotice(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('개인정보 처리방침'),
-        content: const SingleChildScrollView(
-          child: Text(
-            '• 마이크로 측정한 음성 데이터는 기기 내 메모리에서만 처리됩니다\n'
-            '• dB 수치만 서버에 저장되며 음성 파일은 전송하지 않습니다\n'
-            '• 위치 정보는 주변 카페 탐색 목적으로만 사용됩니다\n'
-            '• 익명 계정 방식으로 이메일, 이름 등 개인 식별 정보를 수집하지 않습니다',
-            style: TextStyle(fontSize: 14, height: 1.7),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인', style: TextStyle(color: AppColors.mintGreen)),
-          ),
-        ],
-      ),
+  Future<void> _showPrivacyNotice(BuildContext context) async {
+    final uri = Uri.parse(
+      'https://moonkj.github.io/Noise-Spot/docs/privacy-policy.html',
     );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   void _showTermsNotice(BuildContext context) {
@@ -356,36 +304,152 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  String _permissionButtonLabel(PermissionStatus status) {
+    if (status.isGranted) return '설정에서 변경';
+    return '설정에서 허용';
+  }
+
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: const Text('로그아웃'),
-        content: const Text('로그아웃 하시겠습니까?\n다시 앱을 열면 자동으로 로그인됩니다.'),
+        content: const Text('로그아웃하면 다시 로그인해야 합니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(dialogCtx);
-              context.go('/onboarding');
+              await ref.read(authRepositoryProvider).signOut();
+              // router redirect navigates to /onboarding automatically
             },
-            child: const Text('로그아웃', style: TextStyle(color: AppColors.dbVeryLoud)),
+            child: const Text(
+              '로그아웃',
+              style: TextStyle(color: AppColors.mintGreen),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _confirmDeleteAccount(BuildContext context) {
+  void _showCafeRequestDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final addrCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    bool submitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('카페 등록 요청'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: '카페 이름 *',
+                    hintText: '예) 조용한카페 청주점',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: addrCtrl,
+                  decoration: const InputDecoration(
+                    labelText: '주소 (선택)',
+                    hintText: '예) 충북 청주시 흥덕구 ...',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: noteCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: '추가 메모 (선택)',
+                    hintText: '운영 시간, 특이사항 등',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.isEmpty) return;
+                      setSt(() => submitting = true);
+                      try {
+                        await ref.read(cafeRequestsRepositoryProvider).submitRequest(
+                              cafeName: name,
+                              address: addrCtrl.text.trim(),
+                              note: noteCtrl.text.trim(),
+                            );
+                        if (dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('요청이 접수되었습니다. 검토 후 추가될 예정입니다.')),
+                          );
+                        }
+                      } catch (_) {
+                        setSt(() => submitting = false);
+                      }
+                    },
+              child: const Text('요청하기', style: TextStyle(color: AppColors.mintGreen)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAdminSpotsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AdminSpotsSheet(
+        spotsRepo: ref.read(spotsRepositoryProvider),
+        placesService: ref.read(placesServiceProvider),
+      ),
+    );
+  }
+
+  void _showAdminRequestsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AdminRequestsSheet(
+        repo: ref.read(cafeRequestsRepositoryProvider),
+        spotsRepo: ref.read(spotsRepositoryProvider),
+        placesService: ref.read(placesServiceProvider),
+      ),
+    );
+  }
+
+  void _confirmDataReset(BuildContext context) {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('회원탈퇴'),
+        title: const Text('앱 데이터 초기화'),
         content: const Text(
-          '모든 측정 기록이 삭제되고 새로운 사용자로 시작됩니다.\n이 작업은 되돌릴 수 없습니다.',
+          '모든 측정 기록과 닉네임이 삭제되고\n새로운 사용자로 다시 시작됩니다.\n\n이 작업은 되돌릴 수 없습니다.',
         ),
         actions: [
           TextButton(
@@ -395,11 +459,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(dialogCtx);
-              await ref.read(nicknameProvider.notifier).clear();
+              await NicknameNotifier.resetAll();
               await ref.read(authRepositoryProvider).deleteAccount();
               if (context.mounted) context.go('/onboarding');
             },
-            child: const Text('탈퇴', style: TextStyle(color: AppColors.dbVeryLoud)),
+            child: const Text('초기화', style: TextStyle(color: AppColors.dbVeryLoud)),
           ),
         ],
       ),
@@ -435,6 +499,7 @@ class _SectionHeader extends StatelessWidget {
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String? subtitle;
   final Widget? trailing;
   final bool showArrow;
   final VoidCallback? onTap;
@@ -442,6 +507,7 @@ class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
     required this.icon,
     required this.title,
+    this.subtitle,
     this.trailing,
     this.showArrow = false,
     this.onTap,
@@ -461,6 +527,9 @@ class _SettingsTile extends StatelessWidget {
           title,
           style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A1A)),
         ),
+        subtitle: subtitle != null
+            ? Text(subtitle!, style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
+            : null,
         trailing: trailing ??
             (showArrow
                 ? Icon(Icons.chevron_right, size: 20, color: Colors.grey.shade400)
@@ -471,54 +540,13 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
-class _SwitchTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SwitchTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        leading: Icon(icon, size: 20, color: AppColors.textSecondary),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A1A)),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-        ),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeThumbColor: AppColors.mintGreen,
-        ),
-      ),
-    );
-  }
-}
 
 class _PermissionTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final PermissionStatus status;
+  final String buttonLabel;
   final VoidCallback onManage;
 
   const _PermissionTile({
@@ -526,6 +554,7 @@ class _PermissionTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.status,
+    required this.buttonLabel,
     required this.onManage,
   });
 
@@ -569,7 +598,7 @@ class _PermissionTile extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(40, 32),
               ),
-              child: const Text('관리', style: TextStyle(color: AppColors.mintGreen)),
+              child: Text(buttonLabel, style: const TextStyle(color: AppColors.mintGreen)),
             ),
           ],
         ),
@@ -578,6 +607,564 @@ class _PermissionTile extends StatelessWidget {
   }
 }
 
+// ── 관리자: 요청 목록 바텀시트 ──────────────────────────────────
+class _AdminRequestsSheet extends StatefulWidget {
+  final CafeRequestsRepository repo;
+  final SpotsRepository spotsRepo;
+  final PlacesService placesService;
+  const _AdminRequestsSheet({
+    required this.repo,
+    required this.spotsRepo,
+    required this.placesService,
+  });
+
+  @override
+  State<_AdminRequestsSheet> createState() => _AdminRequestsSheetState();
+}
+
+class _AdminRequestsSheetState extends State<_AdminRequestsSheet> {
+  late Future<List<CafeRequest>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.repo.fetchPending();
+  }
+
+  void _refresh() => setState(() => _future = widget.repo.fetchPending());
+
+  Future<void> _updateStatus(BuildContext context, String id, String status) async {
+    try {
+      await widget.repo.updateStatus(id, status);
+      _refresh();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _approveRequest(BuildContext context, CafeRequest r) async {
+    final nameCtrl = TextEditingController(text: r.cafeName);
+    final addrCtrl = TextEditingController(text: r.address ?? '');
+    final latCtrl = TextEditingController();
+    final lngCtrl = TextEditingController();
+    bool loading = false;
+    bool geocoding = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('카페 등록'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: '카페 이름 *'),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: addrCtrl,
+                        decoration: const InputDecoration(labelText: '주소'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    geocoding
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : TextButton(
+                            onPressed: () async {
+                              final addr = addrCtrl.text.trim();
+                              if (addr.isEmpty) return;
+                              setSt(() => geocoding = true);
+                              final result = await widget.placesService
+                                  .geocodeAddress(addr);
+                              setSt(() => geocoding = false);
+                              if (result != null) {
+                                latCtrl.text = result.lat.toStringAsFixed(6);
+                                lngCtrl.text = result.lng.toStringAsFixed(6);
+                              } else if (dialogCtx.mounted) {
+                                ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('주소로 좌표를 찾을 수 없습니다')),
+                                );
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: const Size(0, 36),
+                            ),
+                            child: const Text('자동',
+                                style: TextStyle(
+                                    color: AppColors.mintGreen, fontSize: 13)),
+                          ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: latCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '위도 *',
+                          hintText: '36.6423',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: lngCtrl,
+                        decoration: const InputDecoration(
+                          labelText: '경도 *',
+                          hintText: '127.4282',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      final lat = double.tryParse(latCtrl.text.trim());
+                      final lng = double.tryParse(lngCtrl.text.trim());
+                      if (name.isEmpty || lat == null || lng == null) return;
+                      setSt(() => loading = true);
+                      try {
+                        await widget.spotsRepo.createSpot(
+                          name: name,
+                          googlePlaceId: null,
+                          lat: lat,
+                          lng: lng,
+                          formattedAddress: addrCtrl.text.trim().isEmpty
+                              ? null
+                              : addrCtrl.text.trim(),
+                        );
+                        await widget.repo.updateStatus(r.id, 'approved');
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                        _refresh();
+                      } catch (e) {
+                        setSt(() => loading = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('오류: $e')),
+                          );
+                        }
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text(
+                      '등록 & 승인',
+                      style: TextStyle(color: AppColors.mintGreen),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      maxChildSize: 0.95,
+      builder: (_, ctrl) => Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('카페 추가 요청 목록', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Expanded(
+            child: FutureBuilder<List<CafeRequest>>(
+              future: _future,
+              builder: (ctx, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = snap.data ?? [];
+                if (list.isEmpty) {
+                  return const Center(child: Text('대기 중인 요청이 없습니다.', style: TextStyle(color: Colors.grey)));
+                }
+                return ListView.separated(
+                  controller: ctrl,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: list.length,
+                  separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final r = list[i];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(r.cafeName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            if (r.address != null && r.address!.isNotEmpty)
+                              Text(r.address!, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                            if (r.note != null && r.note!.isNotEmpty)
+                              Text('메모: ${r.note}', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                            Text(r.createdAt.toLocal().toString().substring(0, 16), style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () => _updateStatus(context, r.id, 'rejected'),
+                                  child: const Text('거절', style: TextStyle(color: Colors.red)),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () => _approveRequest(context, r),
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.mintGreen),
+                                  child: const Text('승인 & 등록', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 관리자: 등록된 카페 관리 바텀시트 ─────────────────────────────
+class _AdminSpotsSheet extends StatefulWidget {
+  final SpotsRepository spotsRepo;
+  final PlacesService placesService;
+  const _AdminSpotsSheet({required this.spotsRepo, required this.placesService});
+
+  @override
+  State<_AdminSpotsSheet> createState() => _AdminSpotsSheetState();
+}
+
+class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
+  late Future<List<AdminSpot>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.spotsRepo.fetchManualSpots();
+  }
+
+  void _refresh() => setState(() => _future = widget.spotsRepo.fetchManualSpots());
+
+  Future<void> _editSpot(BuildContext context, AdminSpot spot) async {
+    final nameCtrl = TextEditingController(text: spot.name);
+    final addrCtrl = TextEditingController(text: spot.formattedAddress ?? '');
+    final latCtrl = TextEditingController(text: spot.lat.toStringAsFixed(6));
+    final lngCtrl = TextEditingController(text: spot.lng.toStringAsFixed(6));
+    bool loading = false;
+    bool geocoding = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('카페 수정'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: '카페 이름 *'),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: addrCtrl,
+                        decoration: const InputDecoration(labelText: '주소'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    geocoding
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : TextButton(
+                            onPressed: () async {
+                              final addr = addrCtrl.text.trim();
+                              if (addr.isEmpty) return;
+                              setSt(() => geocoding = true);
+                              final result = await widget.placesService.geocodeAddress(addr);
+                              setSt(() => geocoding = false);
+                              if (result != null) {
+                                latCtrl.text = result.lat.toStringAsFixed(6);
+                                lngCtrl.text = result.lng.toStringAsFixed(6);
+                              } else if (dialogCtx.mounted) {
+                                ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                                  const SnackBar(content: Text('주소로 좌표를 찾을 수 없습니다')),
+                                );
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              minimumSize: const Size(0, 36),
+                            ),
+                            child: const Text('자동',
+                                style: TextStyle(color: AppColors.mintGreen, fontSize: 13)),
+                          ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: latCtrl,
+                        decoration: const InputDecoration(labelText: '위도 *'),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true, signed: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: lngCtrl,
+                        decoration: const InputDecoration(labelText: '경도 *'),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true, signed: true),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      final lat = double.tryParse(latCtrl.text.trim());
+                      final lng = double.tryParse(lngCtrl.text.trim());
+                      if (name.isEmpty || lat == null || lng == null) return;
+                      setSt(() => loading = true);
+                      try {
+                        await widget.spotsRepo.updateSpot(
+                          spot.id,
+                          name: name,
+                          formattedAddress: addrCtrl.text.trim(),
+                          lat: lat,
+                          lng: lng,
+                        );
+                        if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                        _refresh();
+                      } catch (e) {
+                        setSt(() => loading = false);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('오류: $e')),
+                          );
+                        }
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('저장', style: TextStyle(color: AppColors.mintGreen)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteSpot(BuildContext context, AdminSpot spot) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('카페 삭제'),
+        content: Text(
+            '"${spot.name}"을(를) 삭제하시겠습니까?\n연결된 측정 데이터도 함께 삭제됩니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await widget.spotsRepo.deleteSpot(spot.id);
+      _refresh();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('오류: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      maxChildSize: 0.95,
+      builder: (_, ctrl) => Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(height: 16),
+          const Text('등록된 카페 관리',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Expanded(
+            child: FutureBuilder<List<AdminSpot>>(
+              future: _future,
+              builder: (ctx, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = snap.data ?? [];
+                if (list.isEmpty) {
+                  return const Center(
+                    child: Text('직접 등록한 카페가 없습니다.',
+                        style: TextStyle(color: Colors.grey)),
+                  );
+                }
+                return ListView.separated(
+                  controller: ctrl,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: list.length,
+                  separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final s = list[i];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(s.name,
+                                style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700)),
+                            if (s.formattedAddress != null &&
+                                s.formattedAddress!.isNotEmpty)
+                              Text(s.formattedAddress!,
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade600)),
+                            Text(
+                              '${s.lat.toStringAsFixed(5)}, ${s.lng.toStringAsFixed(5)}',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade500),
+                            ),
+                            Text(
+                              '측정 ${s.reportCount}건 · ${s.createdAt.toLocal().toString().substring(0, 10)}',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade400),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () => _deleteSpot(context, s),
+                                  child: const Text('삭제',
+                                      style: TextStyle(color: Colors.red)),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () => _editSpot(context, s),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.mintGreen),
+                                  child: const Text('수정',
+                                      style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
 class _DangerTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -609,59 +1196,3 @@ class _DangerTile extends StatelessWidget {
   }
 }
 
-class _PremiumBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF5BC8AC), Color(0xFF78C5E8)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '프리미엄으로 업그레이드',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '광고 없이 더 많은 기능을 사용해 보세요',
-                  style: TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              '준비 중',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.mintGreen,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

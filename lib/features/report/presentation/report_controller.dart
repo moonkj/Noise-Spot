@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:noise_meter/noise_meter.dart';
+import '../../../core/constants/map_constants.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/review_service.dart';
 import '../../../core/utils/noise_filter.dart';
 import '../data/report_repository.dart';
 import '../../map/data/spots_repository.dart';
@@ -166,16 +168,40 @@ class ReportController extends Notifier<ReportState> {
   }
 
   Future<bool> verifyProximity() async {
-    if (_spotLat == null || _spotLng == null) return true;
+    // New spot (no spotId): no proximity gate — location is captured from GPS at submit
+    if (_spotId.isEmpty) return true;
+
+    // Existing spot: if coordinates missing (route bug), block as safety net
+    if (_spotLat == null || _spotLng == null) {
+      assert(false, 'verifyProximity: spotId=$_spotId but _spotLat=$_spotLat _spotLng=$_spotLng');
+      return false;
+    }
+
     try {
       final pos = await LocationService.getCurrentPosition();
-      return LocationService.isWithinReportRadius(
+      final dist = LocationService.distanceMeters(
         userLat: pos.latitude,
         userLng: pos.longitude,
         targetLat: _spotLat!,
         targetLng: _spotLng!,
       );
-    } catch (_) {
+      final isNear = dist <= MapConstants.reportMaxDistanceMeters;
+      assert(() {
+        // ignore: avoid_print
+        print('[ReportController] 거리=${dist.toStringAsFixed(1)}m '
+            '한도=${MapConstants.reportMaxDistanceMeters}m '
+            'spotLat=$_spotLat spotLng=$_spotLng '
+            'userLat=${pos.latitude} userLng=${pos.longitude} '
+            'isNear=$isNear');
+        return true;
+      }());
+      return isNear;
+    } catch (e) {
+      assert(() {
+        // ignore: avoid_print
+        print('[ReportController] verifyProximity GPS 오류: $e → block');
+        return true;
+      }());
       return false;
     }
   }
@@ -215,6 +241,7 @@ class ReportController extends Notifier<ReportState> {
             sticker: sticker,
           );
       state = state.copyWith(phase: ReportPhase.done);
+      ReviewService.requestIfEligible().catchError((_) {});
     } catch (e) {
       state = state.copyWith(
         phase: ReportPhase.error,

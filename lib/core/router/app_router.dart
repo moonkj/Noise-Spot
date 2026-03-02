@@ -31,6 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOnboarding = state.matchedLocation == '/onboarding';
 
       if (isLoggedIn && isOnboarding) return '/map';
+      if (!isLoggedIn && !isOnboarding) return '/onboarding';
       return null;
     },
     routes: [

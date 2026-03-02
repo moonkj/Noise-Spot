@@ -43,6 +43,19 @@ dependencies:
   # HTTP (Places Autocomplete API)
   http: ^1.2.0
 
+  # Share
+  share_plus: ^10.0.2
+
+  # URL Launcher (개인정보 처리방침 웹 페이지)
+  url_launcher: ^6.3.1
+
+  # In-App Review
+  in_app_review: ^2.0.9
+
+  # Social Login
+  sign_in_with_apple: ^6.1.0
+  crypto: ^3.0.6
+
   # Utils
   freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0
@@ -60,6 +73,7 @@ dev_dependencies:
 
 flutter_launcher_icons:
   ios: true
+  android: true
   image_path: "assets/icon/app_icon.png"
   remove_alpha_ios: true
 
