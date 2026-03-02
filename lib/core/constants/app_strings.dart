@@ -3,7 +3,7 @@ class AppStrings {
 
   // App Info
   static const String appName = 'Cafe Vibe';
-  static const String appSlogan = '시끄러운 도시 속, 나만의 고요한 카페 찾기';
+  static const String appSlogan = '소리까지 취향에 맞는,\n나만의 카페 찾기';
 
   // Privacy — fixed notice (displayed on all measurement & settings screens)
   static const String privacyNoticeMeasure =

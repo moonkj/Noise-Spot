@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -20,8 +21,9 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _waveController;
+  late AnimationController _rippleController;
   bool _showButtons = false;
   bool _isLoading = false;
   String? _errorMessage;
@@ -29,10 +31,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    _rippleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
+
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat();
+      duration: const Duration(milliseconds: 4000),
+    )..forward();
+
+    _waveController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        _rippleController.repeat();
+      }
+    });
 
     // Fade-in buttons after 1.5 s
     Future.delayed(const Duration(milliseconds: 1500), () {
@@ -43,6 +56,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   @override
   void dispose() {
     _waveController.dispose();
+    _rippleController.dispose();
     super.dispose();
   }
 
@@ -60,25 +74,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         setState(() {
           _isLoading = false;
           _errorMessage = 'Apple 로그인에 실패했어요. 다시 시도해 주세요.';
-        });
-      }
-    }
-  }
-
-  Future<void> _onKakao() async {
-    await ref.read(nicknameProvider.notifier).resetAllLive();
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    try {
-      await ref.read(authRepositoryProvider).signInWithKakao();
-      if (mounted) setState(() => _isLoading = false);
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Kakao 로그인에 실패했어요. 다시 시도해 주세요.';
         });
       }
     }
@@ -120,10 +115,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 SizedBox(
                   height: 108,
                   child: AnimatedBuilder(
-                    animation: _waveController,
+                    animation: Listenable.merge([_waveController, _rippleController]),
                     builder: (context, _) => CustomPaint(
                       painter: WaveToSpotPainter(
                         progress: _waveController.value,
+                        rippleValue: _rippleController.value,
                       ),
                       size: const Size(double.infinity, 108),
                     ),
@@ -214,41 +210,33 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   backgroundColor: Colors.white,
+                                  textStyle: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 12),
-                            // Kakao Sign In
+                            // Email / Password
                             SizedBox(
                               width: double.infinity,
                               height: 50,
-                              child: ElevatedButton(
-                                onPressed: _onKakao,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFEE500),
-                                  foregroundColor: const Color(0xFF191919),
-                                  elevation: 0,
+                              child: OutlinedButton(
+                                onPressed: () => context.push('/email-auth'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.textSecondary,
+                                  side: const BorderSide(color: AppColors.textSecondary),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
+                                  backgroundColor: Colors.transparent,
+                                  textStyle: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      '💬',
-                                      style: TextStyle(fontSize: 18),
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      '카카오로 계속하기',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                child: const Text('이메일로 계속하기'),
                               ),
                             ),
                           ],

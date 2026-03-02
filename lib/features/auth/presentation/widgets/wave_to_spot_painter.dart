@@ -3,12 +3,14 @@ import '../../../../core/constants/app_colors.dart';
 
 /// Paints the "Frequency of Calm" brand motif as a drawing animation.
 ///
-/// A small white dot traces left → jagged wave → smooth arc → Spot circle.
-/// [progress] 0.0–1.0: the dot moves along the path, drawing a trail behind it.
+/// Phase 1 — [progress] 0.0–1.0: dot traces wave path → Spot circle blooms.
+/// Phase 2 — [rippleValue] 0.0–1.0 repeating: three staggered ripple rings
+///            expand from the Spot circle (starts after wave completes).
 class WaveToSpotPainter extends CustomPainter {
   final double progress;
+  final double rippleValue;
 
-  WaveToSpotPainter({required this.progress});
+  WaveToSpotPainter({required this.progress, this.rippleValue = 0.0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -93,14 +95,36 @@ class WaveToSpotPainter extends CustomPainter {
       final t = ((progress - 0.90) / 0.10).clamp(0.0, 1.0);
       canvas.drawCircle(
         Offset(spotX, spotY),
-        12.0 * t,
+        8.0 * t,
         Paint()
           ..style = PaintingStyle.fill
           ..color = Colors.white.withValues(alpha: t),
       );
     }
+
+    // Ripple rings — 3 staggered expanding circles after wave completes
+    if (progress >= 0.98 && rippleValue > 0) {
+      const baseRadius = 8.0;
+      const maxRadius = 70.0;
+      final center = Offset(spotX, spotY);
+
+      for (int i = 0; i < 3; i++) {
+        final phase = (rippleValue + i / 3.0) % 1.0;
+        final radius = baseRadius + (maxRadius - baseRadius) * phase;
+        final opacity = (1.0 - phase) * 0.55;
+        canvas.drawCircle(
+          center,
+          radius,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.8
+            ..color = AppColors.mintGreen.withValues(alpha: opacity),
+        );
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(WaveToSpotPainter old) => old.progress != progress;
+  bool shouldRepaint(WaveToSpotPainter old) =>
+      old.progress != progress || old.rippleValue != rippleValue;
 }

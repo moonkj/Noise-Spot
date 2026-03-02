@@ -56,6 +56,23 @@ class AuthRepository {
     );
   }
 
+  /// Email + password sign in.
+  Future<void> signInWithEmail(String email, String password) async {
+    await _client.auth.signInWithPassword(email: email, password: password);
+  }
+
+  /// Email + password sign up.
+  /// Returns true if session was immediately created (email confirmation disabled).
+  /// Returns false if email confirmation is required first.
+  Future<bool> signUpWithEmail(String email, String password) async {
+    final res = await _client.auth.signUp(
+      email: email,
+      password: password,
+      emailRedirectTo: 'com.cafevibe.cafevibe://login-callback',
+    );
+    return res.session != null;
+  }
+
   /// Sign in anonymously — no OAuth required.
   /// Safe to call repeatedly: skips if already signed in.
   Future<void> signInAnonymously() async {

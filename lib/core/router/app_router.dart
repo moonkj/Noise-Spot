@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
+import '../../features/auth/presentation/nickname_screen.dart';
+import '../../features/auth/presentation/email_auth_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/explore/presentation/explore_screen.dart';
 import '../../features/ranking/presentation/ranking_screen.dart';
@@ -28,10 +30,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final session = ref.read(supabaseClientProvider).auth.currentSession;
       final isLoggedIn = session != null;
-      final isOnboarding = state.matchedLocation == '/onboarding';
+      final loc = state.matchedLocation;
+      final isOnboarding = loc == '/onboarding';
+      final isEmailAuth = loc == '/email-auth';
 
-      if (isLoggedIn && isOnboarding) return '/map';
-      if (!isLoggedIn && !isOnboarding) return '/onboarding';
+      if (!isLoggedIn) {
+        if (!isOnboarding && !isEmailAuth) return '/onboarding';
+        return null;
+      }
+      // Logged in
+      if (isOnboarding || isEmailAuth) return '/nickname';
       return null;
     },
     routes: [
@@ -39,6 +47,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         name: 'onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/nickname',
+        name: 'nickname',
+        builder: (context, state) => const NicknameScreen(),
+      ),
+      GoRoute(
+        path: '/email-auth',
+        name: 'email-auth',
+        builder: (context, state) => const EmailAuthScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => _MainShell(child: child),
