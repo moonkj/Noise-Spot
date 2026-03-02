@@ -64,13 +64,13 @@ class RankingRepository {
   final SupabaseClient _client;
   RankingRepository(this._client);
 
-  // ── Tab 1: 조용한 카페 TOP ─────────────────────────────────
+  // ── Tab 1: 잔잔한 카페 TOP ─────────────────────────────────
   // spots 테이블 직접 쿼리 — RPC / migration 불필요
   Future<List<QuietCafeRankItem>> getQuietCafeRanking() async {
     final res = await _client
         .from('spots')
         .select()
-        .gte('report_count', 3)
+        .gte('report_count', 1)
         .gt('average_db', 0)
         .order('average_db', ascending: true)
         .limit(20)
@@ -89,7 +89,7 @@ class RankingRepository {
     }).toList();
   }
 
-  // ── Tab 2: 측정왕 TOP ──────────────────────────────────────
+  // ── Tab 2: 바이브 탐험가 TOP ───────────────────────────────
   // user_stats 테이블 직접 쿼리 (migration 002 필요)
   // migration 미적용 시 빈 목록 반환 — 앱 crash 없음
   Future<List<UserRankItem>> getUserRanking() async {
@@ -141,7 +141,7 @@ class RankingRepository {
     }
   }
 
-  // ── Tab 3: 이번 주 활발한 카페 ─────────────────────────────
+  // ── Tab 3: 이번 주 인기 바이브 카페 ────────────────────────
   // reports 테이블에서 7일간 데이터 직접 집계 — RPC / migration 불필요
   Future<List<WeeklyCafeRankItem>> getWeeklyCafeRanking() async {
     final cutoff = DateTime.now()
@@ -151,12 +151,12 @@ class RankingRepository {
 
     final res = await _client
         .from('reports')
-        .select('spot_id, spots(id, name, representative_sticker, report_count)')
+        .select('spot_id, spots(id, name, formatted_address, representative_sticker)')
         .gte('created_at', cutoff)
         .limit(500)
         .timeout(const Duration(seconds: 10));
 
-    // Dart-side 집계: spot별 주간 리포트 수
+    // Dart-side 집계: spot별 주간 리포트 수 (report_count는 실제 행 수로 집계)
     final Map<String, Map<String, dynamic>> bySpot = {};
     for (final r in res as List) {
       final rm = r as Map<String, dynamic>;
@@ -169,8 +169,8 @@ class RankingRepository {
         bySpot[spotId] = {
           'id': spot['id'] as String? ?? spotId,
           'name': spot['name'] as String? ?? '',
+          'formatted_address': spot['formatted_address'] as String?,
           'representative_sticker': spot['representative_sticker'],
-          'report_count': (spot['report_count'] as num?)?.toInt() ?? 0,
           'weekly_count': 0,
         };
       }
@@ -180,14 +180,17 @@ class RankingRepository {
 
     final items = bySpot.values
         .where((e) => (e['name'] as String).isNotEmpty)
-        .map((e) => WeeklyCafeRankItem(
-              id: e['id'] as String,
-              name: e['name'] as String,
-              formattedAddress: null, // reports join에선 불필요
-              representativeSticker: e['representative_sticker'] as String?,
-              weeklyCount: e['weekly_count'] as int,
-              totalCount: e['report_count'] as int,
-            ))
+        .map((e) {
+          final wc = e['weekly_count'] as int;
+          return WeeklyCafeRankItem(
+            id: e['id'] as String,
+            name: e['name'] as String,
+            formattedAddress: e['formatted_address'] as String?,
+            representativeSticker: e['representative_sticker'] as String?,
+            weeklyCount: wc,
+            totalCount: wc, // weekly 집계 내에서 실제 측정 수
+          );
+        })
         .toList()
       ..sort((a, b) => b.weeklyCount.compareTo(a.weeklyCount));
 

@@ -9,8 +9,11 @@ import '../../../core/services/moderation_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/content_filter.dart';
 import '../../map/domain/spot_model.dart';
+import '../../map/presentation/map_controller.dart' show mapControllerProvider;
 import '../../profile/presentation/profile_screen.dart'
     show profileStatsProvider, profileReportsProvider, profileBadgeDataProvider;
+import '../../ranking/data/ranking_repository.dart'
+    show quietCafeRankingProvider, userRankingProvider, weeklyCafeRankingProvider;
 import '../../profile/presentation/widgets/badge_earned_popup.dart';
 import '../data/report_repository.dart';
 import 'report_controller.dart';
@@ -109,6 +112,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ref.invalidate(profileStatsProvider);
         ref.invalidate(profileReportsProvider);
         ref.invalidate(profileBadgeDataProvider);
+        // Refresh ranking so new report appears immediately
+        ref.invalidate(quietCafeRankingProvider);
+        ref.invalidate(userRankingProvider);
+        ref.invalidate(weeklyCafeRankingProvider);
+        // Reload map spots so markers reflect updated average_db / report_count
+        ref.read(mapControllerProvider.notifier).reloadSpots();
         _checkBadgesAfterSubmit();
       }
     });

@@ -154,6 +154,22 @@ class ReportRepository {
     };
   }
 
+  /// Returns live report count and average dB for a spot directly from the
+  /// reports table — bypasses the stale SpotModel passed at navigation time.
+  Future<({int count, double avgDb})> getSpotStats(String spotId) async {
+    final resp = await _client
+        .from('reports')
+        .select('measured_db')
+        .eq('spot_id', spotId);
+    final rows = (resp as List).cast<Map<String, dynamic>>();
+    if (rows.isEmpty) return (count: 0, avgDb: 0.0);
+    final avg = rows
+            .map((r) => (r['measured_db'] as num).toDouble())
+            .reduce((a, b) => a + b) /
+        rows.length;
+    return (count: rows.length, avgDb: avg);
+  }
+
   /// Fetch recent reports for a spot with user nicknames.
   /// Uses 2 queries to avoid N+1: reports → user_profiles nickname merge.
   Future<List<Map<String, dynamic>>> getSpotRecentReports(

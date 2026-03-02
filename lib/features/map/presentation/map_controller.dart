@@ -159,6 +159,13 @@ class MapController extends Notifier<MapState> {
     _initLocation();
   }
 
+  /// Forces an immediate spot reload — call after report submission so the
+  /// map reflects the new average_db / report_count without waiting for camera idle.
+  void reloadSpots() {
+    final pos = state.userPosition;
+    if (pos != null) _loadSpots(lat: pos.latitude, lng: pos.longitude);
+  }
+
   static SpotDisplayMode displayMode(double zoom) {
     if (zoom >= MapConstants.zoomIndividualMin) return SpotDisplayMode.individual;
     if (zoom >= MapConstants.zoomReducedMin) return SpotDisplayMode.reduced;

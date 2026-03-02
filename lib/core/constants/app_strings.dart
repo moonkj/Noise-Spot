@@ -37,9 +37,9 @@ class AppStrings {
 
   // Ranking screen
   static const String rankingTitle = '랭킹';
-  static const String rankingTabQuiet = '조용한 카페 TOP';
-  static const String rankingTabMeasurers = '측정왕 TOP';
-  static const String rankingTabWeekly = '이번 주 활발한 카페';
+  static const String rankingTabQuiet = '잔잔한 카페 TOP';
+  static const String rankingTabMeasurers = '바이브 탐험가 TOP';
+  static const String rankingTabWeekly = '이번 주 인기 바이브 카페';
 
   // Level names (Lv.1 ~ Lv.10, XP-based)
   static const List<String> levelNames = [

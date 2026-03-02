@@ -53,6 +53,9 @@ class _RankingScreenState extends ConsumerState<RankingScreen>
                 const SizedBox(height: 12),
                 TabBar(
                   controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   labelColor: AppColors.mintGreen,
                   unselectedLabelColor: const Color(0xFFAAAAAA),
                   indicatorColor: AppColors.mintGreen,
@@ -86,7 +89,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen>
 }
 
 // ──────────────────────────────────────────────────────────────
-// Tab 1: 조용한 카페 TOP
+// Tab 1: 잔잔한 카페 TOP
 // ──────────────────────────────────────────────────────────────
 class _QuietCafeTab extends ConsumerWidget {
   const _QuietCafeTab();
@@ -149,7 +152,7 @@ class _QuietCafeTab extends ConsumerWidget {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Tab 2: 측정왕 TOP
+// Tab 2: 바이브 탐험가 TOP
 // ──────────────────────────────────────────────────────────────
 class _MeasurerTab extends ConsumerWidget {
   const _MeasurerTab();
@@ -255,7 +258,7 @@ class _MeasurerTab extends ConsumerWidget {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Tab 3: 이번 주 활발한 카페
+// Tab 3: 이번 주 인기 바이브 카페
 // ──────────────────────────────────────────────────────────────
 class _WeeklyTab extends ConsumerWidget {
   const _WeeklyTab();

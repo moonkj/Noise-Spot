@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/admin_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/nickname_service.dart';
+import '../../../core/services/rep_badge_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/level_service.dart';
 import '../../map/domain/spot_model.dart';
@@ -192,7 +193,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 12),
-                      _ProfileHeader(nickname: nickname, level: level),
+                      _ProfileHeader(nickname: nickname, level: level, badges: badges),
                       const SizedBox(height: 12),
                       _LevelCard(level: level),
                       const SizedBox(height: 12),
@@ -291,19 +292,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 // ──────────────────────────────────────────────────────────────
 // Profile header card
 // ──────────────────────────────────────────────────────────────
-class _ProfileHeader extends StatelessWidget {
+class _ProfileHeader extends ConsumerWidget {
   final String? nickname;
   final UserLevel level;
+  final List<BadgeInfo> badges;
 
   const _ProfileHeader({
     required this.nickname,
     required this.level,
+    required this.badges,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final displayName = (nickname != null && nickname!.isNotEmpty) ? nickname! : '익명 사용자';
     final initial = displayName.substring(0, 1).toUpperCase();
+    final repBadgeId = ref.watch(repBadgeProvider);
+    final repBadge = repBadgeId != null
+        ? badges.where((b) => b.id == repBadgeId && b.unlocked).firstOrNull
+        : null;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -320,22 +327,48 @@ class _ProfileHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppColors.brandGradient,
-            ),
-            child: Center(
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+          // ── Avatar (tappable) ──
+          GestureDetector(
+            onTap: () => _showBadgePicker(context, ref),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.brandGradient,
+                  ),
+                  child: Center(
+                    child: repBadge != null
+                        ? Text(repBadge.emoji, style: const TextStyle(fontSize: 30))
+                        : Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
                 ),
-              ),
+                // Edit indicator badge
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: AppColors.mintGreen,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(Icons.edit_rounded, size: 10, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 16),
@@ -378,6 +411,221 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showBadgePicker(BuildContext context, WidgetRef ref) {
+    final earnedBadges = badges.where((b) => b.unlocked).toList();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _BadgePickerSheet(
+        earnedBadges: earnedBadges,
+        currentRepBadgeId: ref.read(repBadgeProvider),
+        onSelect: (id) => ref.read(repBadgeProvider.notifier).set(id),
+        onClear: () => ref.read(repBadgeProvider.notifier).clear(),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Badge picker bottom sheet
+// ──────────────────────────────────────────────────────────────
+class _BadgePickerSheet extends StatefulWidget {
+  final List<BadgeInfo> earnedBadges;
+  final String? currentRepBadgeId;
+  final ValueChanged<String> onSelect;
+  final VoidCallback onClear;
+
+  const _BadgePickerSheet({
+    required this.earnedBadges,
+    required this.currentRepBadgeId,
+    required this.onSelect,
+    required this.onClear,
+  });
+
+  @override
+  State<_BadgePickerSheet> createState() => _BadgePickerSheetState();
+}
+
+class _BadgePickerSheetState extends State<_BadgePickerSheet> {
+  late String? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.currentRepBadgeId;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final badges = widget.earnedBadges;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (_, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFF8F6F1),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                children: [
+                  const Text(
+                    '대표 뱃지 선택',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_selected != null)
+                    GestureDetector(
+                      onTap: () {
+                        widget.onClear();
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        '기본으로 되돌리기',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Sub-label
+            Padding(
+              padding: const EdgeInsets.only(left: 20, bottom: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  badges.isEmpty
+                      ? '아직 획득한 뱃지가 없어요'
+                      : '획득한 뱃지 중 프로필에 표시할 1개를 선택하세요',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+              ),
+            ),
+            // Badge grid
+            Expanded(
+              child: badges.isEmpty
+                  ? Center(
+                      child: Text(
+                        '뱃지를 획득하면 여기에 표시돼요 🏅',
+                        style: TextStyle(color: Colors.grey.shade400),
+                      ),
+                    )
+                  : GridView.builder(
+                      controller: scrollCtrl,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 0.85,
+                      ),
+                      itemCount: badges.length,
+                      itemBuilder: (_, i) {
+                        final badge = badges[i];
+                        final isActive = _selected == badge.id;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() => _selected = badge.id);
+                            widget.onSelect(badge.id);
+                            Navigator.pop(context);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? AppColors.mintGreen.withValues(alpha: 0.15)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isActive
+                                    ? AppColors.mintGreen
+                                    : Colors.grey.shade200,
+                                width: isActive ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Text(badge.emoji,
+                                        style: const TextStyle(fontSize: 28)),
+                                    if (isActive)
+                                      Positioned(
+                                        top: -4,
+                                        right: -4,
+                                        child: Container(
+                                          width: 16,
+                                          height: 16,
+                                          decoration: const BoxDecoration(
+                                            color: AppColors.mintGreen,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.check,
+                                              size: 10, color: Colors.white),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  badge.label,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: isActive
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isActive
+                                        ? AppColors.mintGreen
+                                        : const Color(0xFF666666),
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
+          ],
+        ),
       ),
     );
   }

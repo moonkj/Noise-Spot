@@ -20,6 +20,13 @@ final _hourlyNoiseProvider = FutureProvider.autoDispose
       ref.read(reportRepositoryProvider).getSpotHourlyNoise(spotId),
 );
 
+/// Live report count + average dB from DB — overrides stale SpotModel values.
+final _spotLiveStatsProvider = FutureProvider.autoDispose
+    .family<({int count, double avgDb}), String>(
+  (ref, spotId) =>
+      ref.read(reportRepositoryProvider).getSpotStats(spotId),
+);
+
 final _recentReportsProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>(
   (ref, spotId) =>
@@ -96,7 +103,12 @@ class _SpotDetailScreenState extends ConsumerState<SpotDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final spot = widget.spot;
-    final dbColor = DbClassifier.colorFromDb(spot.averageDb);
+    final liveStats = ref.watch(_spotLiveStatsProvider(spot.id)).asData?.value;
+    final liveCount = liveStats?.count ?? spot.reportCount;
+    final liveAvgDb = (liveStats != null && liveStats.count > 0)
+        ? liveStats.avgDb
+        : spot.averageDb;
+    final dbColor = DbClassifier.colorFromDb(liveAvgDb);
     final hourlyAsync = ref.watch(_hourlyNoiseProvider(spot.id));
     final recentAsync = ref.watch(_recentReportsProvider(spot.id));
     final bottomPad = MediaQuery.of(context).padding.bottom;
@@ -146,7 +158,12 @@ class _SpotDetailScreenState extends ConsumerState<SpotDetailScreen> {
 
               // ── Summary Banner ───────────────────────────────
               SliverToBoxAdapter(
-                child: _SummaryBanner(spot: spot, dbColor: dbColor),
+                child: _SummaryBanner(
+                  spot: spot,
+                  dbColor: dbColor,
+                  liveCount: liveCount,
+                  liveAvgDb: liveAvgDb,
+                ),
               ),
 
               // ── Hourly Chart ─────────────────────────────────
@@ -222,13 +239,10 @@ class _HeroBackground extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Center(
-                child: Text(
-                  spot.name.isNotEmpty ? spot.name[0] : '?',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+                child: const Icon(
+                  Icons.local_cafe_rounded,
+                  size: 36,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -268,7 +282,14 @@ class _HeroBackground extends StatelessWidget {
 class _SummaryBanner extends StatelessWidget {
   final SpotModel spot;
   final Color dbColor;
-  const _SummaryBanner({required this.spot, required this.dbColor});
+  final int liveCount;
+  final double liveAvgDb;
+  const _SummaryBanner({
+    required this.spot,
+    required this.dbColor,
+    required this.liveCount,
+    required this.liveAvgDb,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -281,14 +302,14 @@ class _SummaryBanner extends StatelessWidget {
           Icon(Icons.graphic_eq, size: 16, color: dbColor),
           const SizedBox(width: 6),
           Text(
-            '평균 ${spot.averageDb.toStringAsFixed(1)}dB',
+            liveCount == 0 ? '측정 없음' : '평균 ${liveAvgDb.toStringAsFixed(1)}dB',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: dbColor,
             ),
           ),
-          if (sticker != null) ...[
+          if (sticker != null && liveCount > 0) ...[
             const SizedBox(width: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -307,7 +328,7 @@ class _SummaryBanner extends StatelessWidget {
           ],
           const Spacer(),
           Text(
-            '${spot.reportCount}회 측정',
+            '$liveCount회 측정',
             style: const TextStyle(fontSize: 13, color: Color(0xFF888888)),
           ),
         ],
