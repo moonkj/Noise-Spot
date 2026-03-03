@@ -15,7 +15,7 @@ import '../../report/data/report_repository.dart';
 // ──────────────────────────────────────────────────────────────
 
 final myMapSpotsProvider = FutureProvider.autoDispose<List<SpotModel>>((ref) {
-  return ref.read(reportRepositoryProvider).getMyReportedSpots();
+  return ref.watch(reportRepositoryProvider).getMyReportedSpots();
 });
 
 // ──────────────────────────────────────────────────────────────
@@ -55,31 +55,35 @@ class MyMapScreen extends ConsumerWidget {
             top: 0,
             left: 16,
             child: SafeArea(
-              child: GestureDetector(
-                onTap: () => context.canPop() ? context.pop() : context.go('/profile'),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                    borderRadius: BorderRadius.circular(22),
+                    onTap: () => context.canPop() ? context.pop() : context.go('/profile'),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.18),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.arrow_back,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.onSurface,
+                      child: Icon(
+                        Icons.arrow_back,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
           // ── 타이틀 ──────────────────────────────────────────────
           Positioned(
@@ -159,6 +163,14 @@ class _MapBodyState extends State<_MapBody> {
   }
 
   @override
+  void didUpdateWidget(_MapBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.spots != widget.spots) {
+      _buildMarkersAsync();
+    }
+  }
+
+  @override
   void dispose() {
     _mapController?.dispose();
     super.dispose();
@@ -173,23 +185,35 @@ class _MapBodyState extends State<_MapBody> {
   }
 
   Future<void> _buildMarkersAsync() async {
-    if (widget.spots.isEmpty) return;
+    if (widget.spots.isEmpty) {
+      if (mounted) setState(() => _markers = {});
+      return;
+    }
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final newMarkers = <Marker>{};
 
     for (final spot in widget.spots) {
+      if (!mounted) return; // ← mounted 체크 (각 await 전)
+
       BitmapDescriptor descriptor;
       if (_bitmapCache.containsKey(spot.id)) {
         descriptor = _bitmapCache[spot.id]!;
       } else {
-        descriptor = await SpotMarkerWidget.toBitmapDescriptor(spot, pixelRatio);
+        try {
+          descriptor = await SpotMarkerWidget.toBitmapDescriptor(spot, pixelRatio);
+        } catch (_) {
+          descriptor = BitmapDescriptor.defaultMarker;
+        }
+        if (!mounted) return; // ← await 후 재확인
         _bitmapCache[spot.id] = descriptor;
       }
       newMarkers.add(Marker(
         markerId: MarkerId(spot.id),
         position: LatLng(spot.lat, spot.lng),
         icon: descriptor,
-        onTap: () => setState(() => _selectedSpot = spot),
+        onTap: () {
+          if (mounted) setState(() => _selectedSpot = spot);
+        },
       ));
     }
     if (mounted) setState(() => _markers = newMarkers);
@@ -338,11 +362,15 @@ class _MiniInfoCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: onClose,
-            child: Icon(
-              Icons.close,
-              size: 18,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+            child: Padding(
+              padding: const EdgeInsets.all(13), // (44-18)/2 → WCAG 44pt 확보
+              child: Icon(
+                Icons.close,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
             ),
           ),
         ],

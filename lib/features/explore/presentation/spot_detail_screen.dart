@@ -42,15 +42,10 @@ final spotRecentReportsProvider = FutureProvider.autoDispose
 /// - Admin-uploaded photos (Supabase Storage URLs) are permanent → use from DB.
 /// - Google Places CDN URLs expire after ~1 day → always fetch fresh from API.
 final _spotPhotoProvider =
-    FutureProvider.autoDispose.family<String?, SpotModel>((ref, spot) async {
-  // Supabase Storage URLs are permanent (admin-uploaded).
-  final cached = spot.photoUrl;
-  if (cached != null && cached.contains('supabase.co/storage')) {
-    return cached;
-  }
+    FutureProvider.autoDispose.family<String?, String>((ref, googlePlaceId) async {
   // Google Places spots: always fetch a fresh CDN URL.
-  if (spot.googlePlaceId == null) return null;
-  return ref.read(placesServiceProvider).getPhotoUrl(spot.googlePlaceId!);
+  if (googlePlaceId.isEmpty) return null;
+  return ref.read(placesServiceProvider).getPhotoUrl(googlePlaceId);
 });
 
 // ──────────────────────────────────────────────────────────────
@@ -237,8 +232,14 @@ class _HeroBackground extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final photoUrl =
-        ref.watch(_spotPhotoProvider(spot)).asData?.value;
+    // Admin-uploaded photos (Supabase Storage) are permanent — use directly.
+    // Google Places CDN URLs expire — fetch fresh via provider.
+    final cachedUrl = spot.photoUrl;
+    final isSupabaseUrl = cachedUrl != null && cachedUrl.contains('supabase.co/storage');
+    final googlePhotoUrl = (spot.googlePlaceId != null && !isSupabaseUrl)
+        ? ref.watch(_spotPhotoProvider(spot.googlePlaceId!)).asData?.value
+        : null;
+    final photoUrl = isSupabaseUrl ? cachedUrl : googlePhotoUrl;
 
     if (photoUrl != null) {
       return Stack(
@@ -247,6 +248,15 @@ class _HeroBackground extends ConsumerWidget {
           Image.network(
             photoUrl,
             fit: BoxFit.cover,
+            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+              if (wasSynchronouslyLoaded) return child;
+              return AnimatedOpacity(
+                opacity: frame == null ? 0 : 1,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+                child: child,
+              );
+            },
             errorBuilder: (context, error, stack) => _gradientBackground(),
           ),
           // Dark gradient overlay so AppBar title stays readable

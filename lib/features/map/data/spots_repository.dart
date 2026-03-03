@@ -219,13 +219,62 @@ class SpotsRepository {
   }
 
   /// Update (or clear) the photo_url for a spot.
+  /// Validates URL against allowed domains before saving.
   Future<void> updateSpotPhoto(String id, String? photoUrl) async {
+    if (photoUrl != null && !_isAllowedPhotoUrl(photoUrl)) {
+      throw Exception('허용되지 않는 사진 URL 도메인입니다.');
+    }
     await _client.from('spots').update({'photo_url': photoUrl}).eq('id', id);
+  }
+
+  /// Delete a spot photo: removes the file from Storage, then clears the DB URL.
+  Future<void> deleteSpotPhoto(String spotId, String? currentUrl) async {
+    // Remove file from Storage if it's a Supabase Storage URL
+    if (currentUrl != null && currentUrl.contains('supabase.co/storage')) {
+      try {
+        await _client.storage.from('spot-photos').remove(['spots/$spotId']);
+      } catch (_) {
+        // Storage removal is best-effort; continue to clear DB URL
+      }
+    }
+    await updateSpotPhoto(spotId, null);
   }
 
   /// Upload [bytes] to Supabase Storage (spot-photos bucket) and persist public URL.
   /// [fileName] is used only for MIME-type detection.
   /// Max 5 MB enforced client-side (server also enforces via bucket config).
+  /// Validate image bytes by checking magic bytes (file header).
+  /// Returns the MIME type if valid, or null if not a recognized image.
+  static String? _validateImageMagicBytes(Uint8List bytes) {
+    if (bytes.length < 4) return null;
+    // JPEG: FF D8 FF
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
+      return 'image/jpeg';
+    }
+    // PNG: 89 50 4E 47
+    if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+      return 'image/png';
+    }
+    // WebP: RIFF....WEBP
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
+        bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) {
+      return 'image/webp';
+    }
+    return null;
+  }
+
+  /// Validates that a photo URL is from an allowed domain.
+  static bool _isAllowedPhotoUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    final host = uri.host.toLowerCase();
+    return host.endsWith('supabase.co') ||
+           host.endsWith('supabase.in') ||
+           host.endsWith('googleusercontent.com') ||
+           host.endsWith('googleapis.com');
+  }
+
   Future<String> uploadSpotPhoto(
       String spotId, Uint8List bytes, String fileName) async {
     const maxBytes = 5 * 1024 * 1024;
@@ -233,12 +282,13 @@ class SpotsRepository {
       throw Exception('파일 크기가 5MB를 초과합니다 (${(bytes.lengthInBytes / 1024 / 1024).toStringAsFixed(1)} MB)');
     }
 
-    final lower = fileName.toLowerCase();
-    final mimeType = lower.endsWith('.png')
-        ? 'image/png'
-        : lower.endsWith('.webp')
-            ? 'image/webp'
-            : 'image/jpeg';
+    // Magic bytes validation — reject non-image files regardless of extension
+    final detectedMime = _validateImageMagicBytes(bytes);
+    if (detectedMime == null) {
+      throw Exception('지원하지 않는 이미지 형식입니다. JPG, PNG, WebP만 가능합니다.');
+    }
+
+    final mimeType = detectedMime;
 
     // Fixed path per spot — upsert overwrites previous photo
     final path = 'spots/$spotId';

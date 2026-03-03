@@ -833,11 +833,38 @@ class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
   }
 
   Future<void> _deletePhoto(BuildContext context, PhotoAdminSpot spot) async {
-    await widget.spotsRepo.updateSpotPhoto(spot.id, null);
-    await _load();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('사진이 삭제되었습니다')));
+    // 삭제 확인 다이얼로그
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('사진 삭제'),
+        content: Text('"${spot.name}"의 사진을 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await widget.spotsRepo.deleteSpotPhoto(spot.id, spot.photoUrl);
+      await _load();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('사진이 삭제되었습니다')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+      }
     }
   }
 
