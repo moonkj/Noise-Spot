@@ -275,6 +275,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 if (_isAdmin) ...[
                   _SectionHeader('관리자'),
                   _SettingsTile(
+                    icon: Icons.people_outline_rounded,
+                    title: '앱 접속 통계',
+                    subtitle: '일간 · 주간 · 월간 · 누적 유저',
+                    showArrow: true,
+                    onTap: () => _showAdminUserStatsSheet(context),
+                  ),
+                  _SettingsTile(
                     icon: Icons.admin_panel_settings_outlined,
                     title: '카페 등록/삭제 요청 목록',
                     showArrow: true,
@@ -620,6 +627,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (_) => _AdminSpotsSheet(
         spotsRepo: ref.read(spotsRepositoryProvider),
         placesService: ref.read(placesServiceProvider),
+      ),
+    );
+  }
+
+  void _showAdminUserStatsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AdminUserStatsSheet(
+        supabase: ref.read(supabaseClientProvider),
       ),
     );
   }
@@ -2255,3 +2275,258 @@ class _DangerTile extends StatelessWidget {
   }
 }
 
+
+// ── 관리자: 앱 접속 통계 바텀시트 ────────────────────────────────────
+class _AdminUserStatsSheet extends StatefulWidget {
+  final SupabaseClient supabase;
+  const _AdminUserStatsSheet({required this.supabase});
+
+  @override
+  State<_AdminUserStatsSheet> createState() => _AdminUserStatsSheetState();
+}
+
+class _AdminUserStatsSheetState extends State<_AdminUserStatsSheet> {
+  Map<String, int>? _stats;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await widget.supabase.rpc('get_admin_user_stats');
+      final row = (res as List?)?.firstOrNull as Map<String, dynamic>?;
+      if (row != null) {
+        setState(() {
+          _stats = {
+            'dau': row['dau'] as int? ?? 0,
+            'wau': row['wau'] as int? ?? 0,
+            'mau': row['mau'] as int? ?? 0,
+            'total': row['total'] as int? ?? 0,
+          };
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _loading = false;
+          _error = '데이터를 불러오지 못했습니다';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = '$e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final today = DateTime.now();
+    final dateStr =
+        '${today.year}.${today.month.toString().padLeft(2, '0')}.${today.day.toString().padLeft(2, '0')} 기준';
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.55,
+      minChildSize: 0.4,
+      maxChildSize: 0.7,
+      builder: (context, scrollCtrl) {
+        return Container(
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // 핸들
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // 헤더
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.people_outline_rounded, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '앱 접속 통계',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, size: 20),
+                      onPressed: _loading ? null : _load,
+                      tooltip: '새로고침',
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                dateStr,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurface.withValues(alpha: 0.45),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 내용
+              Expanded(
+                child: _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                        ? Center(
+                            child: Text(
+                              _error!,
+                              style: const TextStyle(fontSize: 13),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20),
+                            child: GridView.count(
+                              controller: scrollCtrl,
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 1.4,
+                              children: [
+                                _StatCard(
+                                  label: '오늘 접속',
+                                  sublabel: '일간 DAU',
+                                  value: _stats!['dau']!,
+                                  color: AppColors.mintGreen,
+                                ),
+                                _StatCard(
+                                  label: '이번 주',
+                                  sublabel: '7일 WAU',
+                                  value: _stats!['wau']!,
+                                  color: AppColors.skyBlue,
+                                ),
+                                _StatCard(
+                                  label: '이번 달',
+                                  sublabel: '30일 MAU',
+                                  value: _stats!['mau']!,
+                                  color: const Color(0xFF9B8BF4),
+                                ),
+                                _StatCard(
+                                  label: '누적 유저',
+                                  sublabel: '전체 기간',
+                                  value: _stats!['total']!,
+                                  color: const Color(0xFFFF9966),
+                                ),
+                              ],
+                            ),
+                          ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String sublabel;
+  final int value;
+  final Color color;
+
+  const _StatCard({
+    required this.label,
+    required this.sublabel,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+              Text(
+                sublabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurface.withValues(alpha: 0.4),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$value',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  '명',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: color.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

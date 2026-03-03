@@ -20,9 +20,24 @@ import '../constants/app_colors.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ValueNotifier<bool>(false);
+  var sessionRecorded = false;
   ref.onDispose(authNotifier.dispose);
   ref.listen(authStateProvider, (_, _) => authNotifier.value = !authNotifier.value);
   ref.listen(supabaseInitProvider, (_, _) => authNotifier.value = !authNotifier.value);
+
+  // 앱 오픈 시 세션 기록 (하루 1회, ON CONFLICT DO NOTHING으로 중복 방지)
+  ref.listen(authStateProvider, (_, next) {
+    if (sessionRecorded) return;
+    next.whenData((state) {
+      if (state.session != null) {
+        sessionRecorded = true;
+        ref
+            .read(supabaseClientProvider)
+            .rpc('record_user_session')
+            .catchError((_) => null);
+      }
+    });
+  });
 
   return GoRouter(
     initialLocation: '/splash',
