@@ -47,4 +47,43 @@ void main() {
       expect(DbClassifier.formatDb(100.0), '100.0 dB');
     });
   });
+
+  group('DbClassifier.emojiFromDb', () {
+    test('40dB 미만 → 🍃', () {
+      expect(DbClassifier.emojiFromDb(0.0), '🍃');
+      expect(DbClassifier.emojiFromDb(39.9), '🍃');
+    });
+
+    test('40~55dB → 🌿', () {
+      expect(DbClassifier.emojiFromDb(40.0), '🌿');
+      expect(DbClassifier.emojiFromDb(54.9), '🌿');
+    });
+
+    test('55~70dB → 🔔', () {
+      expect(DbClassifier.emojiFromDb(55.0), '🔔');
+      expect(DbClassifier.emojiFromDb(69.9), '🔔');
+    });
+
+    test('70~85dB → 📢', () {
+      expect(DbClassifier.emojiFromDb(70.0), '📢');
+      expect(DbClassifier.emojiFromDb(84.9), '📢');
+    });
+
+    test('85dB 이상 → 🔊', () {
+      expect(DbClassifier.emojiFromDb(85.0), '🔊');
+      expect(DbClassifier.emojiFromDb(110.0), '🔊');
+    });
+
+    test('colorFromDb와 emojiFromDb 구간이 일치한다 (5개 구간 동일 경계)', () {
+      const thresholds = [0.0, 40.0, 55.0, 70.0, 85.0];
+      const emojis = ['🍃', '🌿', '🔔', '📢', '🔊'];
+      for (int i = 0; i < thresholds.length; i++) {
+        expect(
+          DbClassifier.emojiFromDb(thresholds[i]),
+          emojis[i],
+          reason: '${thresholds[i]}dB → ${emojis[i]} 기대',
+        );
+      }
+    });
+  });
 }

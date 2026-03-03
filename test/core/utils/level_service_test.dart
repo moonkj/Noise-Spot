@@ -36,6 +36,7 @@ BadgeStats _statsWith({
   int maxCafesOneDay = 0,
   int totalStickerCount = 0,
   int memoReportCount = 0,
+  int uniqueDistrictCount = 0,
 }) =>
     BadgeStats(
       totalReports: totalReports,
@@ -63,6 +64,7 @@ BadgeStats _statsWith({
       maxCafesOneDay: maxCafesOneDay,
       totalStickerCount: totalStickerCount,
       memoReportCount: memoReportCount,
+      uniqueDistrictCount: uniqueDistrictCount,
     );
 
 // ──────────────────────────────────────────────────────────────
@@ -132,20 +134,22 @@ void main() {
     });
   });
 
-  // ── LevelService.calcBadges — 30개 뱃지 ───────────────────
+  // ── LevelService.calcBadges — 32개 뱃지 ───────────────────
   group('LevelService.calcBadges — 뱃지 개수 & 구조', () {
-    test('항상 30개 뱃지를 반환한다', () {
+    test('항상 32개 뱃지를 반환한다 (B01~B30 + B31/B32)', () {
       final badges = LevelService.calcBadges(_emptyStats(), {});
-      expect(badges.length, 30);
+      expect(badges.length, 32);
     });
 
-    test('B01~B30 ID가 모두 존재한다', () {
+    test('B01~B30 + B31 + B32 ID가 모두 존재한다', () {
       final badges = LevelService.calcBadges(_emptyStats(), {});
       final ids = badges.map((b) => b.id).toSet();
       for (int i = 1; i <= 30; i++) {
         final id = 'B${i.toString().padLeft(2, '0')}';
         expect(ids.contains(id), isTrue, reason: '$id 누락');
       }
+      expect(ids.contains('B31'), isTrue, reason: 'B31 누락');
+      expect(ids.contains('B32'), isTrue, reason: 'B32 누락');
     });
 
     test('모든 뱃지에 emoji, label, condition이 있다', () {
@@ -295,6 +299,54 @@ void main() {
         {},
       );
       expect(badges.firstWhere((b) => b.id == 'B16').unlocked, isTrue);
+    });
+
+    // B31/B32 — uniqueDistrictCount 기반 (탐험 카테고리 확장)
+    test('B31: uniqueDistrictCount>=3 → 해제', () {
+      final badges = LevelService.calcBadges(
+        _statsWith(uniqueDistrictCount: 3),
+        {},
+      );
+      expect(badges.firstWhere((b) => b.id == 'B31').unlocked, isTrue);
+    });
+
+    test('B31: uniqueDistrictCount=2 → 잠금', () {
+      final badges = LevelService.calcBadges(
+        _statsWith(uniqueDistrictCount: 2),
+        {},
+      );
+      expect(badges.firstWhere((b) => b.id == 'B31').unlocked, isFalse);
+    });
+
+    test('B32: uniqueDistrictCount>=8 → 해제', () {
+      final badges = LevelService.calcBadges(
+        _statsWith(uniqueDistrictCount: 8),
+        {},
+      );
+      expect(badges.firstWhere((b) => b.id == 'B32').unlocked, isTrue);
+    });
+
+    test('B32: uniqueDistrictCount=7 → 잠금', () {
+      final badges = LevelService.calcBadges(
+        _statsWith(uniqueDistrictCount: 7),
+        {},
+      );
+      expect(badges.firstWhere((b) => b.id == 'B32').unlocked, isFalse);
+    });
+
+    test('B31 달성 시 B32는 아직 잠금 (3개 동네 < 8개)', () {
+      final badges = LevelService.calcBadges(
+        _statsWith(uniqueDistrictCount: 3),
+        {},
+      );
+      expect(badges.firstWhere((b) => b.id == 'B31').unlocked, isTrue);
+      expect(badges.firstWhere((b) => b.id == 'B32').unlocked, isFalse);
+    });
+
+    test('B31/B32: earnedIds 우선 적용', () {
+      final badges = LevelService.calcBadges(_emptyStats(), {'B31', 'B32'});
+      expect(badges.firstWhere((b) => b.id == 'B31').unlocked, isTrue);
+      expect(badges.firstWhere((b) => b.id == 'B32').unlocked, isTrue);
     });
   });
 
@@ -517,6 +569,7 @@ void main() {
       expect(s.maxStreakDays, 0);
       expect(s.morningReportCount, 0);
       expect(s.nightReportCount, 0);
+      expect(s.uniqueDistrictCount, 0);
     });
 
     test('모든 bool 필드는 false', () {

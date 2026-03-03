@@ -59,4 +59,39 @@ void main() {
       expect(offset, 0.0);
     });
   });
+
+  group('CalibrationService.resetAll()', () {
+    test('저장된 offset과 calibration_done 플래그 모두 삭제', () async {
+      SharedPreferences.setMockInitialValues({
+        'mic_offset': 42.0,
+        'calibration_done': true,
+      });
+      await CalibrationService.resetAll();
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getDouble('mic_offset'), isNull);
+      expect(prefs.getBool('calibration_done'), isNull);
+    });
+
+    test('resetAll 후 getOffset() → 0.0 (기본값)', () async {
+      SharedPreferences.setMockInitialValues({'mic_offset': 55.0});
+      await CalibrationService.resetAll();
+      final offset = await CalibrationService.getOffset();
+      expect(offset, 0.0);
+    });
+
+    test('resetAll 후 isCalibrated() → false', () async {
+      SharedPreferences.setMockInitialValues({
+        'mic_offset': 38.0,
+        'calibration_done': true,
+      });
+      await CalibrationService.resetAll();
+      final result = await CalibrationService.isCalibrated();
+      expect(result, isFalse);
+    });
+
+    test('이미 비어있는 상태에서 resetAll() — 예외 없이 완료', () async {
+      SharedPreferences.setMockInitialValues({});
+      await expectLater(CalibrationService.resetAll(), completes);
+    });
+  });
 }

@@ -26,7 +26,7 @@ import '../../../core/services/rep_badge_service.dart';
 import '../../../core/services/calibration_service.dart';
 import '../../../core/services/review_service.dart';
 import '../../../core/services/moderation_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/suggestion_limit_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -1679,10 +1679,6 @@ class _SuggestionSheet extends StatefulWidget {
 }
 
 class _SuggestionSheetState extends State<_SuggestionSheet> {
-  static const _kDateKey = 'suggestion_daily_date';
-  static const _kCountKey = 'suggestion_daily_count';
-  static const _kDailyLimit = 3;
-
   final _ctrl = TextEditingController();
   bool _submitting = false;
 
@@ -1692,30 +1688,11 @@ class _SuggestionSheetState extends State<_SuggestionSheet> {
     super.dispose();
   }
 
-  Future<bool> _isDailyLimitReached() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toLocal();
-    final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    final savedDate = prefs.getString(_kDateKey);
-    if (savedDate != dateStr) {
-      await prefs.setString(_kDateKey, dateStr);
-      await prefs.setInt(_kCountKey, 0);
-      return false;
-    }
-    return (prefs.getInt(_kCountKey) ?? 0) >= _kDailyLimit;
-  }
-
-  Future<void> _incrementDailyCount() async {
-    final prefs = await SharedPreferences.getInstance();
-    final count = prefs.getInt(_kCountKey) ?? 0;
-    await prefs.setInt(_kCountKey, count + 1);
-  }
-
   Future<void> _submit() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
 
-    if (await _isDailyLimitReached()) {
+    if (await SuggestionLimitService.isLimitReached()) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1738,7 +1715,7 @@ class _SuggestionSheetState extends State<_SuggestionSheet> {
     setState(() => _submitting = true);
     try {
       await widget.repo.submitRequest(cafeName: '[제안]', note: text);
-      await _incrementDailyCount();
+      await SuggestionLimitService.increment();
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(

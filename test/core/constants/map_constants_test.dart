@@ -4,8 +4,8 @@ import 'package:cafe_vibe/core/constants/map_constants.dart';
 void main() {
   // ── 리포팅 반경 ────────────────────────────────────────────
   group('MapConstants — 리포팅 반경', () {
-    test('reportMaxDistanceMeters == 50m (비즈니스 규칙)', () {
-      expect(MapConstants.reportMaxDistanceMeters, 50.0);
+    test('reportMaxDistanceMeters == 65m (비즈니스 규칙)', () {
+      expect(MapConstants.reportMaxDistanceMeters, 65.0);
     });
   });
 
