@@ -263,7 +263,7 @@ class PlacesService {
           'type': 'cafe',
           'key': _mapsApiKey,
           'language': 'ko',
-          if (pageToken != null) 'pagetoken': pageToken,
+          'pagetoken': ?pageToken,
         };
 
         final uri = Uri.https(
