@@ -1,6 +1,6 @@
 # Cafe Vibe — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-03-03 (Phase 25 디자인 레벨업 완료 ✅, 측정 1일 1회 제한 ✅, 태그 버그 수정 ✅, 랭킹 Glassmorphism ✅)
+마지막 업데이트: 2026-03-03 (Phase 25/26 완료 ✅, 스플래시 화면 추가 ✅ — 로그인 시 3초 파형+앱이름 후 맵 이동)
 
 ---
 
@@ -32,6 +32,7 @@ Phase 23: UX 완성도           ████████████ 100% ✅ (
 Phase 24: 인증 & 테스트        ████████████ 100% ✅ (이메일 로그인, Apple Sign In, 닉네임 서비스, 웨이브 애니메이션, 323 TDD 테스트)
 Phase 25: 디자인 레벨업        ████████████ 100% ✅ (다크모드 전면, Noto Sans KR, Glassmorphism SpotInfoCard, 측정화면 차콜원+5링+팁카드+타이머, 탐색카드 dB바, 온보딩 FlowingWavePainter, 탭바 스프링 애니메이션)
 Phase 26: 버그 수정 & UX 보완  ████████████ 100% ✅ (측정 1일 1카페 제한+체크시작 경고, 태그 ## 이중 해시 수정, #속삭임 자동태그 삭제, 랭킹화면 Glassmorphism 카드)
+Phase 27: 스플래시 화면        ████████████ 100% ✅ (로그인 상태 → 3초 파형+앱이름 → 맵 / 미로그인 → 온보딩 즉시 이동)
 Phase 13: App Store 준비      ████████░░░░  65% 🔄 (GitHub Pages ✅, IPA 57.9MB ✅, TestFlight ⏳, ASC 정보 ⏳)
 아키텍처: 소셜로그인 필수화     ████████████ 100% ✅ (Apple/Google/Email ✅, SecureLocalStorage ✅, 닉네임 서비스 ✅)
 ```
@@ -1303,6 +1304,20 @@ xcrun devicectl device process launch \
 - [x] **태그 `##` 이중 해시 수정**: `spot_detail_screen.dart` — `_visitorTags()` 에서 `replaceFirst(RegExp(r'^#+'), '')` 적용
 - [x] **`#속삭임` 자동태그 제거**: `_deriveVibeTags()` 에서 dB 기반 자동 태그 블록 제거
 - [x] **랭킹화면 Glassmorphism**: `ranking_screen.dart` — `_RankCard` → `_GlassRankCard` (BackdropFilter blur 12), AppBar 글래스, 배경 크림/다크 분기
+
+---
+
+## ✅ Phase 27: 스플래시 화면 — 2026-03-03
+
+- [x] `lib/features/auth/presentation/splash_screen.dart` (신규) — `SplashScreen` 위젯
+  - `FlowingWavePainter` + 앱 이름 그라데이션 + 슬로건
+  - 3초 후 `context.go('/map')` 자동 이동
+  - 배경: 라이트(크림 그라데이션) / 다크(0xFF0D1F1A → 0xFF0D1A2E)
+- [x] `app_router.dart` — `/splash` 라우트 추가, `initialLocation: '/splash'`
+- [x] `redirect` 로직 개선:
+  - 미로그인 + `/splash` → 즉시 `/onboarding`
+  - 로그인 + `/splash` → null (SplashScreen이 3초 후 직접 이동)
+  - 로그인 + `/onboarding`/`/email-auth` → 바로 `/map` (온보딩 생략)
 
 ---
 

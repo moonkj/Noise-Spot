@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/nickname_screen.dart';
 import '../../features/auth/presentation/email_auth_screen.dart';
@@ -21,28 +22,38 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(supabaseInitProvider, (_, _) => authNotifier.value = !authNotifier.value);
 
   return GoRouter(
-    initialLocation: '/onboarding',
+    initialLocation: '/splash',
     debugLogDiagnostics: false,
     refreshListenable: authNotifier,
     redirect: (context, state) {
       final initAsync = ref.read(supabaseInitProvider);
-      if (!initAsync.hasValue) return null;
+      if (!initAsync.hasValue) return null; // Supabase 초기화 대기
 
       final session = ref.read(supabaseClientProvider).auth.currentSession;
       final isLoggedIn = session != null;
       final loc = state.matchedLocation;
+      final isSplash    = loc == '/splash';
       final isOnboarding = loc == '/onboarding';
-      final isEmailAuth = loc == '/email-auth';
+      final isEmailAuth  = loc == '/email-auth';
 
       if (!isLoggedIn) {
-        if (!isOnboarding && !isEmailAuth) return '/onboarding';
+        // 미로그인: 스플래시/일반 → 온보딩으로 즉시 이동
+        if (isSplash || (!isOnboarding && !isEmailAuth)) return '/onboarding';
         return null;
       }
-      // Logged in
-      if (isOnboarding || isEmailAuth) return '/nickname';
+
+      // 로그인 상태
+      // 온보딩/이메일 화면에서 로그인 완료 → 닉네임 설정 없이 바로 맵
+      if (isOnboarding || isEmailAuth) return '/map';
+      // 스플래시: 2초 후 SplashScreen 자체가 /map 으로 이동
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         name: 'onboarding',
