@@ -1768,3 +1768,38 @@ dependencies:
 3. **Glassmorphism + Google Maps**: Maps 위에 BackdropFilter 올리기는 가능하나 성능 이슈 가능. SpotInfoCard는 지도 위가 아닌 지도 아래 Stack 레이어에 배치 확인 필요
 4. **Lottie confetti 파일**: `assets/lottie/confetti.json` 파일 별도 다운로드 필요 (LottieFiles.com → "confetti" 검색 → MIT 라이선스 파일)
 5. **iOS Dark Mode 지도**: `map_style_dark.json`은 Google Maps for iOS에서 직접 지원하지 않음 → `mapController.setMapStyle(jsonString)` API 사용 (iOS 지원 확인됨)
+
+---
+
+## Phase 26 — 즐겨찾기(북마크) 기능
+
+### 구현 완료 (2026-03-03)
+
+#### 추가된 기능
+- 카페 상세 화면(SpotDetailScreen) SliverAppBar에 하트 버튼 추가 (공유 버튼 왼쪽)
+- 하트 탭 시 북마크 추가 → 하트 8개 파티클 방사 애니메이션 (핑크/민트 교차)
+- 북마크 해제 시 파티클 없음, 하트 아이콘만 토글 (흰색 ↔ 핑크)
+- 프로필 탭에 "활동 / 찜한 카페" 2탭 세그먼트 바 추가
+- 찜한 카페 탭: 탐색 탭과 동일한 dB 컬러바 카드 스타일 목록, 탭 → 카페 상세 이동
+- 빈 상태: 하트 아이콘 + "아직 찜한 카페가 없어요" 안내
+
+#### 신규 파일
+| 파일 | 역할 |
+|------|------|
+| `supabase/migrations/017_user_bookmarks.sql` | user_bookmarks 테이블, RLS, 인덱스 |
+| `lib/features/bookmark/data/bookmark_repository.dart` | BookmarkRepository + isBookmarkedProvider + bookmarkedSpotsProvider |
+
+#### 수정 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `lib/features/explore/presentation/spot_detail_screen.dart` | `_BookmarkButton` 추가 (하트 + 파티클) |
+| `lib/features/profile/presentation/profile_screen.dart` | 2탭 구조 + `_BookmarkedSpotsSection` |
+| `lib/core/router/app_router.dart` | 같은 탭 재탭 시 깜박거림 방지 (early return) |
+| `lib/features/map/presentation/map_screen.dart` | FilterBar BackdropFilter 겹침 수정 (AnimatedOpacity 숨김) |
+
+#### 기술적 결정
+- `FamilyAsyncNotifier` 사용 포기 → `FutureProvider.autoDispose.family` + 위젯 로컬 낙관적 업데이트 패턴 채택
+- BackdropFilter 겹침: FilterBar를 `AnimatedOpacity(0.0)` + `IgnorePointer`로 SpotInfoCard 열릴 때 숨김
+  - `Opacity(0.0)`은 픽셀 페인트를 하지 않으므로 BackdropFilter에 캡처되지 않음
+- 파티클: `Container(circle)` → `Icon(Icons.favorite)` 하트, `Curves.easeOutBack` 커브로 통통 튀는 느낌
+- Supabase migration: `supabase db push`로 CLI 직접 적용 완료

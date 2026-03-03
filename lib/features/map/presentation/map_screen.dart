@@ -208,15 +208,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             userLng: mapState.userPosition?.longitude,
           ),
 
-          // Filter bar (bottom)
+          // Filter bar — 카드가 열릴 때 숨김 (BackdropFilter 블러 겹침 방지)
           Positioned(
             left: 0,
             right: 0,
-            bottom: _hasBottomCard ? 200 : 32,
-            child: FilterBar(
-              activeFilter: mapState.activeFilter,
-              onFilterChanged: (filter) =>
-                  ref.read(mapControllerProvider.notifier).setFilter(filter),
+            bottom: 32,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _hasBottomCard ? 0.0 : 1.0,
+              child: IgnorePointer(
+                ignoring: _hasBottomCard,
+                child: FilterBar(
+                  activeFilter: mapState.activeFilter,
+                  onFilterChanged: (filter) =>
+                      ref.read(mapControllerProvider.notifier).setFilter(filter),
+                ),
+              ),
             ),
           ),
 

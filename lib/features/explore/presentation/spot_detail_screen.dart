@@ -1,8 +1,10 @@
+import 'dart:math' show cos, sin, pi;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../bookmark/data/bookmark_repository.dart';
 import '../../../core/services/badge_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/db_classifier.dart';
@@ -119,6 +121,7 @@ class _SpotDetailScreenState extends ConsumerState<SpotDetailScreen> {
                   onPressed: () => context.pop(),
                 ),
                 actions: [
+                  _BookmarkButton(spot: spot),
                   IconButton(
                     icon: const Icon(Icons.ios_share_outlined, size: 22),
                     onPressed: () => Share.share(
@@ -939,6 +942,136 @@ class _StickyMeasureButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// _BookmarkButton — 하트 버튼 + 파티클 애니메이션
+// ──────────────────────────────────────────────────────────────
+
+class _BookmarkButton extends ConsumerStatefulWidget {
+  final SpotModel spot;
+  const _BookmarkButton({required this.spot});
+
+  @override
+  ConsumerState<_BookmarkButton> createState() => _BookmarkButtonState();
+}
+
+class _BookmarkButtonState extends ConsumerState<_BookmarkButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    duration: const Duration(milliseconds: 650),
+    vsync: this,
+  );
+  bool _showParticles = false;
+  // 낙관적 업데이트용 로컬 상태 (null = 서버 값 사용)
+  bool? _localBookmarked;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    final current = _localBookmarked ??
+        ref.read(isBookmarkedProvider(widget.spot.id)).asData?.value ??
+        false;
+    final newValue = !current;
+    setState(() => _localBookmarked = newValue);
+
+    try {
+      await ref
+          .read(bookmarkRepositoryProvider)
+          .toggleBookmark(widget.spot.id);
+      // 프로필 찜한 카페 목록 갱신
+      ref.invalidate(bookmarkedSpotsProvider);
+      ref.invalidate(isBookmarkedProvider(widget.spot.id));
+
+      if (newValue && mounted) {
+        setState(() => _showParticles = true);
+        await _ctrl.forward(from: 0);
+        if (mounted) setState(() => _showParticles = false);
+        _ctrl.reset();
+      }
+    } catch (_) {
+      // 실패 시 롤백
+      if (mounted) setState(() => _localBookmarked = current);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final serverValue =
+        ref.watch(isBookmarkedProvider(widget.spot.id)).asData?.value;
+    final isBookmarked = _localBookmarked ?? serverValue ?? false;
+
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // ── 하트 파티클 8개 (원형 방사) ──────────────────────
+          if (_showParticles)
+            ...List.generate(8, (i) {
+              final angle = i * (2 * pi / 8) - pi / 2;
+              final radius = (i % 2 == 0) ? 32.0 : 26.0;
+              final dx = cos(angle) * radius;
+              final dy = sin(angle) * radius;
+              const colors = [
+                Color(0xFFFF4D7D),
+                Color(0xFFFF8FAB),
+                AppColors.mintGreen,
+                Color(0xFFFF6B9D),
+              ];
+              final color = colors[i % colors.length];
+              final heartSize = (i % 3 == 0) ? 14.0 : 10.0;
+              return Positioned(
+                left: 28 + dx - heartSize / 2,
+                top: 28 + dy - heartSize / 2,
+                child: AnimatedBuilder(
+                  animation: _ctrl,
+                  builder: (context, child) {
+                    final t = _ctrl.value;
+                    final scale = Curves.easeOutBack.transform(t);
+                    final opacity =
+                        (1 - Curves.easeIn.transform(t)).clamp(0.0, 1.0);
+                    return Opacity(
+                      opacity: opacity,
+                      child: Transform.scale(
+                        scale: 0.2 + scale * 0.8,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Icon(Icons.favorite, size: heartSize, color: color),
+                ),
+              );
+            }),
+          // ── 하트 아이콘 버튼 ───────────────────────────────────
+          IconButton(
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              transitionBuilder: (child, animation) => ScaleTransition(
+                scale: animation,
+                child: child,
+              ),
+              child: Icon(
+                isBookmarked ? Icons.favorite : Icons.favorite_border,
+                key: ValueKey(isBookmarked),
+                color: isBookmarked
+                    ? const Color(0xFFFF6B9D)
+                    : Colors.white,
+                size: 22,
+              ),
+            ),
+            onPressed: _toggle,
+          ),
+        ],
       ),
     );
   }

@@ -200,6 +200,9 @@ class _MainShellState extends State<_MainShell>
   // 탭 버튼에서 직접 호출 — build() 밖이므로 notifyListeners 안전
   void _onTabTap(int i) {
     final path = _MainShell._tabs[i].path;
+    final location = GoRouterState.of(context).matchedLocation;
+    // 이미 같은 탭이면 오버레이/네비게이션 모두 생략 (깜박거림 방지)
+    if (location == path || location.startsWith('$path?')) return;
     if (path == '/map') {
       _overlayCtrl.value = 1.0;
       _scheduleFadeOut();

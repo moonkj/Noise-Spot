@@ -7,6 +7,7 @@ import '../../../core/services/nickname_service.dart';
 import '../../../core/services/rep_badge_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/level_service.dart';
+import '../../bookmark/data/bookmark_repository.dart';
 import '../../map/domain/spot_model.dart';
 import '../../report/data/report_repository.dart';
 import '../../report/domain/report_model.dart';
@@ -58,6 +59,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// 닉네임 설정 시트가 이미 표시된 적 있는지 추적 (중복 표시 방지)
   bool _sheetShown = false;
   int _prevLevel = 0;
+  int _activeTab = 0; // 0: 활동, 1: 찜한 카페
 
   @override
   void initState() {
@@ -186,99 +188,130 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               if (adminPreview)
                 const SliverToBoxAdapter(child: _AdminPreviewBanner()),
 
+              // ── Profile header (항상 표시) ──
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 12),
-                      _ProfileHeader(nickname: nickname, level: level, badges: badges),
-                      const SizedBox(height: 12),
-                      _LevelCard(level: level),
-                      const SizedBox(height: 12),
-                      _StatsRow(total: total, totalCafes: totalCafes, totalXp: totalXp),
-                      const SizedBox(height: 16),
-                      _BadgeSection(badges: badges),
-                      const SizedBox(height: 20),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: _ProfileHeader(
+                      nickname: nickname, level: level, badges: badges),
+                ),
+              ),
+
+              // ── 탭 선택 바 ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: _ProfileTabBar(
+                    activeTab: _activeTab,
+                    onTap: (i) => setState(() => _activeTab = i),
                   ),
                 ),
               ),
 
-              // ── Report list ──
-              reportsAsync.when(
-                loading: () => const SliverToBoxAdapter(
+              // ══ Tab 0: 활동 ══════════════════════════════════
+              if (_activeTab == 0) ...[
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.mintGreen)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _LevelCard(level: level),
+                        const SizedBox(height: 12),
+                        _StatsRow(
+                            total: total,
+                            totalCafes: totalCafes,
+                            totalXp: totalXp),
+                        const SizedBox(height: 16),
+                        _BadgeSection(badges: badges),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
-                error: (e, _) =>
-                    SliverToBoxAdapter(child: Center(child: Text(e.toString()))),
-                data: (reports) {
-                  if (reports.isEmpty) {
-                    return SliverMainAxisGroup(slivers: [
-                      const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          child: Text(
-                            '내 측정 기록',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1A1A1A),
+                // Report list
+                reportsAsync.when(
+                  loading: () => const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                          child: CircularProgressIndicator(
+                              color: AppColors.mintGreen)),
+                    ),
+                  ),
+                  error: (e, _) =>
+                      SliverToBoxAdapter(child: Center(child: Text(e.toString()))),
+                  data: (reports) {
+                    if (reports.isEmpty) {
+                      return SliverMainAxisGroup(slivers: [
+                        const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            child: Text(
+                              '내 측정 기록',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1A1A1A),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SliverToBoxAdapter(child: _EmptyReports()),
-                    ]);
-                  }
-                  final displayCount = reports.length > 10 ? 10 : reports.length;
-                  final hasMore = reports.length > 10;
-                  return SliverMainAxisGroup(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          child: Row(
-                            children: [
-                              const Text(
-                                '내 측정 기록',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1A1A1A),
-                                ),
-                              ),
-                              const Spacer(),
-                              if (hasMore)
-                                GestureDetector(
-                                  onTap: () => showAllReportsSheet(context, reports),
-                                  child: const Text(
-                                    '전체보기',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.mintGreen,
-                                    ),
+                        const SliverToBoxAdapter(child: _EmptyReports()),
+                      ]);
+                    }
+                    final displayCount =
+                        reports.length > 10 ? 10 : reports.length;
+                    final hasMore = reports.length > 10;
+                    return SliverMainAxisGroup(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            child: Row(
+                              children: [
+                                const Text(
+                                  '내 측정 기록',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1A1A1A),
                                   ),
                                 ),
-                            ],
+                                const Spacer(),
+                                if (hasMore)
+                                  GestureDetector(
+                                    onTap: () =>
+                                        showAllReportsSheet(context, reports),
+                                    child: const Text(
+                                      '전체보기',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.mintGreen,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (ctx, i) => _ReportTile(report: reports[i]),
-                          childCount: displayCount,
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (ctx, i) => _ReportTile(report: reports[i]),
+                            childCount: displayCount,
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+
+              // ══ Tab 1: 찜한 카페 ═════════════════════════════
+              if (_activeTab == 1)
+                const _BookmarkedSpotsSection(),
 
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
@@ -1226,6 +1259,290 @@ class _EmptyReports extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// 프로필 탭 선택 바 (활동 / 찜한 카페)
+// ──────────────────────────────────────────────────────────────
+class _ProfileTabBar extends StatelessWidget {
+  final int activeTab;
+  final ValueChanged<int> onTap;
+
+  const _ProfileTabBar({required this.activeTab, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.darkBgCard
+            : const Color(0xFFF0F0F0),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _TabItem(label: '활동', index: 0, activeTab: activeTab, onTap: onTap),
+          _TabItem(
+              label: '찜한 카페',
+              index: 1,
+              activeTab: activeTab,
+              onTap: onTap),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabItem extends StatelessWidget {
+  final String label;
+  final int index;
+  final int activeTab;
+  final ValueChanged<int> onTap;
+
+  const _TabItem({
+    required this.label,
+    required this.index,
+    required this.activeTab,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = index == activeTab;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTap(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isActive
+                ? (isDark ? AppColors.darkBgSurface : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight:
+                    isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive
+                    ? AppColors.mintGreen
+                    : (isDark
+                        ? AppColors.darkTextSecondary
+                        : const Color(0xFF888888)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// 찜한 카페 탭 콘텐츠
+// ──────────────────────────────────────────────────────────────
+class _BookmarkedSpotsSection extends ConsumerWidget {
+  const _BookmarkedSpotsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final spotsAsync = ref.watch(bookmarkedSpotsProvider);
+    return spotsAsync.when(
+      loading: () => const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: Center(
+              child: CircularProgressIndicator(color: AppColors.mintGreen)),
+        ),
+      ),
+      error: (e, _) =>
+          SliverToBoxAdapter(child: Center(child: Text(e.toString()))),
+      data: (spots) {
+        if (spots.isEmpty) {
+          return const SliverToBoxAdapter(child: _EmptyBookmarks());
+        }
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (ctx, i) => _BookmarkedSpotTile(spot: spots[i]),
+            childCount: spots.length,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _EmptyBookmarks extends StatelessWidget {
+  const _EmptyBookmarks();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      child: Column(
+        children: [
+          Icon(Icons.favorite_border,
+              size: 48, color: Colors.grey.shade300),
+          const SizedBox(height: 12),
+          Text(
+            '아직 찜한 카페가 없어요',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '카페 상세에서 하트를 눌러 저장해보세요',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BookmarkedSpotTile extends StatelessWidget {
+  final SpotModel spot;
+  const _BookmarkedSpotTile({required this.spot});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dbColor = AppColors.dbColor(spot.averageDb);
+    final hasData = spot.reportCount > 0;
+
+    return GestureDetector(
+      onTap: () => context.push('/spot/${spot.id}', extra: spot),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+              blurRadius: 12,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Row(
+            children: [
+              // 왼쪽 dB 컬러 바
+              Container(width: 5, height: 80, color: dbColor),
+              Expanded(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              spot.name,
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w700),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (spot.formattedAddress != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  spot.formattedAddress!,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? AppColors.darkTextSecondary
+                                          : AppColors.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.bar_chart,
+                                    size: 12,
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.textSecondary),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${spot.reportCount}회',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? AppColors.darkTextSecondary
+                                          : AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // 오른쪽 dB 숫자
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            hasData
+                                ? spot.averageDb.toStringAsFixed(0)
+                                : '--',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: dbColor,
+                              height: 1.0,
+                            ),
+                          ),
+                          Text(
+                            'dB',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: dbColor.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right,
+                          size: 18,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.25)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
