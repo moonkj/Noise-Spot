@@ -52,4 +52,11 @@ class CalibrationService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('calibration_done') ?? false;
   }
+
+  /// Clears calibration data (call on account reset).
+  static Future<void> resetAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_offsetKey);
+    await prefs.remove('calibration_done');
+  }
 }

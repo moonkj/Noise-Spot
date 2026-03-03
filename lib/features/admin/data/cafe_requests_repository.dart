@@ -46,6 +46,7 @@ class CafeRequestsRepository {
     await _client.from('cafe_requests').insert({
       'user_id': uid,
       'cafe_name': cafeName,
+      'status': 'pending',
       if (address != null && address.isNotEmpty) 'address': address,
       if (note != null && note.isNotEmpty) 'note': note,
     });
@@ -64,6 +65,11 @@ class CafeRequestsRepository {
   /// Update request status (admin only).
   Future<void> updateStatus(String id, String status) async {
     await _client.from('cafe_requests').update({'status': status}).eq('id', id);
+  }
+
+  /// Delete a request row entirely (admin only).
+  Future<void> deleteRequest(String id) async {
+    await _client.from('cafe_requests').delete().eq('id', id);
   }
 }
 

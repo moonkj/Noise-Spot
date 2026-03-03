@@ -14,4 +14,10 @@ class ReviewService {
     await inAppReview.requestReview();
     await p.setBool(_key, true);
   }
+
+  /// Clears the review flag (call on account reset).
+  static Future<void> resetAll() async {
+    final p = await SharedPreferences.getInstance();
+    await p.remove(_key);
+  }
 }

@@ -23,13 +23,15 @@ final _hourlyNoiseProvider = FutureProvider.autoDispose
 );
 
 /// Live report count + average dB from DB — overrides stale SpotModel values.
-final _spotLiveStatsProvider = FutureProvider.autoDispose
+/// Public so report_screen can invalidate after submission.
+final spotLiveStatsProvider = FutureProvider.autoDispose
     .family<({int count, double avgDb}), String>(
   (ref, spotId) =>
       ref.read(reportRepositoryProvider).getSpotStats(spotId),
 );
 
-final _recentReportsProvider = FutureProvider.autoDispose
+/// Public so report_screen can invalidate after submission.
+final spotRecentReportsProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>(
   (ref, spotId) =>
       ref.read(reportRepositoryProvider).getSpotRecentReports(spotId, limit: 30),
@@ -94,14 +96,14 @@ class _SpotDetailScreenState extends ConsumerState<SpotDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final spot = widget.spot;
-    final liveStats = ref.watch(_spotLiveStatsProvider(spot.id)).asData?.value;
+    final liveStats = ref.watch(spotLiveStatsProvider(spot.id)).asData?.value;
     final liveCount = liveStats?.count ?? spot.reportCount;
     final liveAvgDb = (liveStats != null && liveStats.count > 0)
         ? liveStats.avgDb
         : spot.averageDb;
     final dbColor = DbClassifier.colorFromDb(liveAvgDb);
     final hourlyAsync = ref.watch(_hourlyNoiseProvider(spot.id));
-    final recentAsync = ref.watch(_recentReportsProvider(spot.id));
+    final recentAsync = ref.watch(spotRecentReportsProvider(spot.id));
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
@@ -124,11 +126,20 @@ class _SpotDetailScreenState extends ConsumerState<SpotDetailScreen> {
                   _BookmarkButton(spot: spot),
                   IconButton(
                     icon: const Icon(Icons.ios_share_outlined, size: 22),
-                    onPressed: () => Share.share(
-                      '${spot.name}\n'
-                      '평균 소음: ${spot.averageDb.toStringAsFixed(1)}dB\n'
-                      '#CafeVibe #카페바이브 #조용한카페',
-                    ),
+                    onPressed: () {
+                      final avgDb = liveAvgDb > 0 ? liveAvgDb : spot.averageDb;
+                      final label = DbClassifier.labelFromDb(avgDb);
+                      final addr = spot.formattedAddress?.isNotEmpty == true
+                          ? '\n📍 ${spot.formattedAddress}'
+                          : '';
+                      Share.share(
+                        '☕ ${spot.name}$addr\n'
+                        '🎵 평균 ${avgDb.toStringAsFixed(1)}dB — $label\n\n'
+                        '카페바이브 앱에서 조용한 카페를 찾아보세요\n'
+                        '#카페바이브 #조용한카페 #소음측정',
+                        subject: '${spot.name} — 카페바이브',
+                      );
+                    },
                   ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
@@ -623,9 +634,12 @@ class _VibeTagsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final autoTags = _deriveVibeTags(spot);
-    final visitorTags = recentAsync.asData?.value != null
+    final rawVisitorTags = recentAsync.asData?.value != null
         ? _visitorTags(recentAsync.asData!.value)
         : <String>[];
+    // autoTags와 중복되는 visitorTags 제거
+    final visitorTags =
+        rawVisitorTags.where((t) => !autoTags.contains(t)).toList();
 
     final allTags = [...autoTags, ...visitorTags];
     if (allTags.isEmpty) return const SizedBox.shrink();
@@ -1015,13 +1029,11 @@ class _BookmarkButtonState extends ConsumerState<_BookmarkButton>
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // ── 하트 파티클 8개 (원형 방사) ──────────────────────
+          // ── 하트 파티클 8개 (중앙 → 바깥 방사) ─────────────────
           if (_showParticles)
             ...List.generate(8, (i) {
               final angle = i * (2 * pi / 8) - pi / 2;
-              final radius = (i % 2 == 0) ? 32.0 : 26.0;
-              final dx = cos(angle) * radius;
-              final dy = sin(angle) * radius;
+              final radius = (i % 2 == 0) ? 40.0 : 32.0;
               const colors = [
                 Color(0xFFFF4D7D),
                 Color(0xFFFF8FAB),
@@ -1030,26 +1042,23 @@ class _BookmarkButtonState extends ConsumerState<_BookmarkButton>
               ];
               final color = colors[i % colors.length];
               final heartSize = (i % 3 == 0) ? 14.0 : 10.0;
-              return Positioned(
-                left: 28 + dx - heartSize / 2,
-                top: 28 + dy - heartSize / 2,
-                child: AnimatedBuilder(
-                  animation: _ctrl,
-                  builder: (context, child) {
-                    final t = _ctrl.value;
-                    final scale = Curves.easeOutBack.transform(t);
-                    final opacity =
-                        (1 - Curves.easeIn.transform(t)).clamp(0.0, 1.0);
-                    return Opacity(
-                      opacity: opacity,
-                      child: Transform.scale(
-                        scale: 0.2 + scale * 0.8,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: Icon(Icons.favorite, size: heartSize, color: color),
-                ),
+              return AnimatedBuilder(
+                animation: _ctrl,
+                builder: (context, child) {
+                  final t = _ctrl.value;
+                  final progress = Curves.easeOut.transform(t);
+                  final animRadius = progress * radius;
+                  final currentDx = cos(angle) * animRadius;
+                  final currentDy = sin(angle) * animRadius;
+                  final opacity =
+                      (1 - Curves.easeIn.transform(t)).clamp(0.0, 1.0);
+                  return Positioned(
+                    left: 28 + currentDx - heartSize / 2,
+                    top: 28 + currentDy - heartSize / 2,
+                    child: Opacity(opacity: opacity, child: child),
+                  );
+                },
+                child: Icon(Icons.favorite, size: heartSize, color: color),
               );
             }),
           // ── 하트 아이콘 버튼 ───────────────────────────────────

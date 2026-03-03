@@ -1803,3 +1803,95 @@ dependencies:
   - `Opacity(0.0)`은 픽셀 페인트를 하지 않으므로 BackdropFilter에 캡처되지 않음
 - 파티클: `Container(circle)` → `Icon(Icons.favorite)` 하트, `Curves.easeOutBack` 커브로 통통 튀는 느낌
 - Supabase migration: `supabase db push`로 CLI 직접 적용 완료
+
+---
+
+## Phase 27 — 스플래시 화면 & 온보딩 개선
+
+### 구현 완료
+
+#### 추가된 기능
+- 네이티브 스플래시 화면 추가 (flutter_native_splash) — 앱 실행 시 화이트 플래시 제거
+- 온보딩 화면 대폭 리디자인: 웨이브 애니메이션 파형 강화, 3 기능 아이콘 행 (지도/바이브/뱃지)
+- 화면 전환 플리커 제거 (Phase 28 이어서 처리)
+
+---
+
+## Phase 28 — 화면 전환 플리커 & 다크모드 Flash 완전 제거
+
+### 구현 완료
+
+#### 수정 내용
+- ShellRoute 탭 전환 시 흰색 플리커 제거 (scaffoldBackgroundColor 통일)
+- 다크모드 앱 시작 시 라이트→다크 flash 제거 (ThemeMode 즉시 적용)
+- 지도 스타일 JSON 다크모드 개선 (`map_style_dark.json`)
+
+---
+
+## Phase 29 — 설정/데이터 관리 강화 & 버그 수정
+
+### 구현 완료 (2026-03-03)
+
+#### 수정 내용
+
+##### 1. 앱 데이터 초기화 완전 수정 (RLS 우회)
+- **문제**: `deleteAccount()` 호출 시 `reports`, `user_badges` 삭제가 RLS 정책 부재로 무시됨. `user_bookmarks`는 삭제 대상 목록 자체에 없었음
+- **해결**: `SECURITY DEFINER` RPC `delete_my_account_data()` 신규 생성 → RLS 완전 우회
+  - 삭제 대상: `reports`, `user_badges`, `user_bookmarks`, `user_profiles`, `user_stats`
+  - `supabase db push`로 migration 019 원격 적용 완료
+- 로컬 SharedPreferences도 완전 초기화: `NicknameNotifier`, `RepBadgeNotifier`, `CalibrationService`, `ReviewService` resetAll() 통합
+
+##### 2. 제안사항 욕설/성적 표현 차단
+- `ModerationService.validate()` 2단계 필터 적용 (로컬 blocklist + Google NL API)
+- 제출 시 부적절한 표현 감지 → 즉시 SnackBar 안내, 전송 차단
+
+##### 3. 제안사항 일일 3회 제한
+- SharedPreferences 기반 날짜별 카운터 (날짜 변경 시 자동 초기화)
+- 초과 시: "오늘 제안사항 한도(3개)에 도달했습니다. 내일 다시 시도해주세요." SnackBar
+- 제안사항 화면 서브텍스트에 "(일일 3회 제한)" 문구 추가
+
+##### 4. 관리자 제안사항 목록 개선
+- "확인 완료" 버튼 제거 (요청에 따라)
+- 삭제 버튼: `updateStatus('rejected')` 방식으로 RLS 우회 (UPDATE는 허용, DELETE는 RLS 차단)
+
+##### 5. 카페 등록/삭제 요청 주소 필드 통일
+- 기존: 등록 요청 시에만 주소 필드 표시
+- 변경: 삭제 요청 시에도 주소 필드 표시 (hint 텍스트만 유형별 상이)
+
+##### 6. 카페 상세 공유 기능 구현
+- 기존: `spot.averageDb` (stale DB값) 사용
+- 변경: `liveAvgDb` (실시간 로드된 DB값) + `spot.formattedAddress` 포함
+- 공유 텍스트: 카페명, 주소, 평균 dB, dB 레이블, 앱 홍보 문구 + 해시태그
+
+##### 7. 대표뱃지 선택 화면 다크모드 적용
+- 하드코딩 `const Color(0xFFF8F6F1)` → `Theme.of(context).colorScheme.surface`
+- 배지 아이템 배경: `Colors.white` → `colorScheme.surfaceContainerHighest`
+- 배지 테두리: `Colors.grey.shade200` → `colorScheme.outline.withValues(alpha: 0.3)`
+- 배지 라벨: `Color(0xFF666666)` → `colorScheme.onSurface.withValues(alpha: 0.7)`
+
+##### 8. 측정 화면 개인정보 문구 수정
+- `privacyNoticeMeasure`: "음성 녹음은 서버에 저장되지 않습니다" → "음성은 저장되지 않으며 데시벨(dB)만 기록됩니다."
+
+##### 9. cafe_requests PostgrestException 수정
+- `submitRequest()` INSERT에 `'status': 'pending'` 누락 → DB check constraint 위반 오류
+- 수정 후: status 필드 명시적 포함
+
+#### 신규 파일
+| 파일 | 역할 |
+|------|------|
+| `supabase/migrations/019_delete_account_rpc.sql` | `delete_my_account_data()` RPC (SECURITY DEFINER) |
+
+#### 수정 파일
+| 파일 | 변경 내용 |
+|------|-----------|
+| `lib/features/auth/data/auth_repository.dart` | `deleteAccount()` RPC 우선 + user_bookmarks 추가 |
+| `lib/core/services/calibration_service.dart` | `resetAll()` static 메서드 추가 |
+| `lib/core/services/review_service.dart` | `resetAll()` static 메서드 추가 |
+| `lib/features/settings/presentation/settings_screen.dart` | 제안사항 limit/moderation, admin 개선, 주소 필드, 초기화 완전화 |
+| `lib/features/explore/presentation/spot_detail_screen.dart` | 공유 기능 개선 (liveAvgDb + 주소) |
+| `lib/features/profile/presentation/profile_screen.dart` | 대표뱃지 선택 화면 다크모드 |
+| `lib/features/admin/data/cafe_requests_repository.dart` | status:'pending' 추가, deleteRequest() 메서드 추가 |
+| `lib/core/constants/app_strings.dart` | `privacyNoticeMeasure` 문구 수정 |
+
+#### Supabase 마이그레이션
+- Migration 019 `supabase db push --linked`로 원격 적용 완료

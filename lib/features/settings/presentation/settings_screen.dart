@@ -9,9 +9,11 @@ import '../../../core/constants/admin_config.dart';
 import '../../../core/services/theme_mode_service.dart';
 import '../../../core/services/admin_dummy_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show SupabaseClient;
 import '../../../core/services/badge_service.dart';
 import '../../../core/services/nickname_service.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/utils/level_service.dart' show BadgeInfo;
 import '../../auth/data/auth_repository.dart';
 import '../../admin/data/cafe_requests_repository.dart';
 import '../../../core/services/places_service.dart';
@@ -20,6 +22,11 @@ import '../../profile/data/profile_repository.dart';
 import '../../profile/presentation/widgets/badge_earned_popup.dart';
 import '../../profile/presentation/profile_screen.dart' show adminBadgePreviewProvider;
 import '../../../core/services/location_service.dart';
+import '../../../core/services/rep_badge_service.dart';
+import '../../../core/services/calibration_service.dart';
+import '../../../core/services/review_service.dart';
+import '../../../core/services/moderation_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -203,7 +210,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 _PermissionTile(
                   icon: Icons.mic_rounded,
                   title: '마이크',
-                  subtitle: '소음 수치(dB) 측정에만 사용됩니다',
+                  subtitle: '데시벨 수치(dB) 측정에만 사용됩니다',
                   isGranted: _micGranted,
                   onManage: () => openAppSettings(),
                 ),
@@ -246,14 +253,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   onTap: () => showLicensePage(context: context, applicationName: 'Cafe Vibe'),
                 ),
 
-                // ── 카페 추가 요청 (일반 사용자) ────────────────────────
-                _SectionHeader('카페 추가 요청'),
+                // ── 요청사항 (일반 사용자) ───────────────────────────
+                _SectionHeader('요청사항'),
                 _SettingsTile(
                   icon: Icons.add_location_alt_outlined,
-                  title: '카페 등록 요청',
-                  subtitle: '앱에 없는 카페를 운영자에게 요청',
+                  title: '카페 등록/삭제 요청',
+                  subtitle: '새 카페 등록 또는 폐업 카페 삭제를 운영자에게 요청',
                   showArrow: true,
-                  onTap: () => _showCafeRequestDialog(context),
+                  onTap: () => _showCafeRequestSheet(context),
+                ),
+                _SettingsTile(
+                  icon: Icons.lightbulb_outline_rounded,
+                  title: '제안사항',
+                  subtitle: '서비스 개선 의견을 운영자에게 전달',
+                  showArrow: true,
+                  onTap: () => _showSuggestionSheet(context),
                 ),
 
                 // ── 관리자 ─────────────────────────────────────────────
@@ -261,9 +275,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   _SectionHeader('관리자'),
                   _SettingsTile(
                     icon: Icons.admin_panel_settings_outlined,
-                    title: '카페 추가 요청 목록',
+                    title: '카페 등록/삭제 요청 목록',
                     showArrow: true,
                     onTap: () => _showAdminRequestsSheet(context),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.lightbulb_outline_rounded,
+                    title: '제안사항 목록',
+                    showArrow: true,
+                    onTap: () => _showAdminSuggestionsSheet(context),
                   ),
                   _SettingsTile(
                     icon: Icons.store_outlined,
@@ -472,91 +492,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
-  void _showCafeRequestDialog(BuildContext context) {
-    final nameCtrl = TextEditingController();
-    final addrCtrl = TextEditingController();
-    final noteCtrl = TextEditingController();
-    bool submitting = false;
-
-    showDialog(
+  void _showCafeRequestSheet(BuildContext context) {
+    showModalBottomSheet(
       context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setSt) => AlertDialog(
-          title: const Text('카페 등록 요청'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '카페 이름 *',
-                    hintText: '예) 조용한카페 청주점',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: addrCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '주소 (선택)',
-                    hintText: '예) 충북 청주시 흥덕구 ...',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: noteCtrl,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: '추가 메모 (선택)',
-                    hintText: '운영 시간, 특이사항 등',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: submitting
-                  ? null
-                  : () async {
-                      final name = nameCtrl.text.trim();
-                      if (name.isEmpty) return;
-                      setSt(() => submitting = true);
-                      try {
-                        await ref.read(cafeRequestsRepositoryProvider).submitRequest(
-                              cafeName: name,
-                              address: addrCtrl.text.trim(),
-                              note: noteCtrl.text.trim(),
-                            );
-                        if (dialogCtx.mounted) {
-                          Navigator.pop(dialogCtx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('요청이 접수되었습니다. 검토 후 추가될 예정입니다.')),
-                          );
-                        }
-                        // B29: 피드백 파트너 — award once on first feedback submit
-                        if (context.mounted) {
-                          final client = ref.read(supabaseClientProvider);
-                          final badge = await BadgeService.awardInstantBadge(
-                            client: client,
-                            badgeId: 'B29',
-                          );
-                          if (badge != null && context.mounted) {
-                            await showBadgeEarnedPopup(context, badge);
-                          }
-                        }
-                      } catch (_) {
-                        setSt(() => submitting = false);
-                      }
-                    },
-              child: const Text('요청하기', style: TextStyle(color: AppColors.mintGreen)),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CafeRequestSheet(
+        repo: ref.read(cafeRequestsRepositoryProvider),
+        supabaseClient: ref.read(supabaseClientProvider),
+        onBadgeEarned: (badge) async {
+          if (context.mounted) await showBadgeEarnedPopup(context, badge);
+        },
+      ),
+    );
+  }
+
+  void _showSuggestionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SuggestionSheet(
+        repo: ref.read(cafeRequestsRepositoryProvider),
+        supabaseClient: ref.read(supabaseClientProvider),
+        onBadgeEarned: (badge) async {
+          if (context.mounted) await showBadgeEarnedPopup(context, badge);
+        },
+      ),
+    );
+  }
+
+  void _showAdminSuggestionsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AdminSuggestionsSheet(
+        repo: ref.read(cafeRequestsRepositoryProvider),
       ),
     );
   }
@@ -663,7 +637,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (dialogCtx) => AlertDialog(
         title: const Text('앱 데이터 초기화'),
         content: const Text(
-          '모든 측정 기록과 닉네임이 삭제되고\n새로운 사용자로 다시 시작됩니다.\n\n이 작업은 되돌릴 수 없습니다.',
+          '모든 측정 기록, 뱃지, 닉네임이 삭제되고\n새로운 사용자로 다시 시작됩니다.\n\n이 작업은 되돌릴 수 없습니다.',
         ),
         actions: [
           TextButton(
@@ -673,7 +647,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           TextButton(
             onPressed: () async {
               Navigator.pop(dialogCtx);
+              // Clear all local SharedPreferences data
               await NicknameNotifier.resetAll();
+              await RepBadgeNotifier.resetAll();
+              await CalibrationService.resetAll();
+              await ReviewService.resetAll();
+              // Delete all server-side user data (reports, badges, profile, stats)
               await ref.read(authRepositoryProvider).deleteAccount();
               if (context.mounted) context.go('/onboarding');
             },
@@ -1125,7 +1104,7 @@ class _AdminRequestsSheetState extends State<_AdminRequestsSheet> {
           const SizedBox(height: 12),
           Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
-          const Text('카페 추가 요청 목록', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const Text('카페 등록/삭제 요청 목록', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Expanded(
             child: FutureBuilder<List<CafeRequest>>(
@@ -1134,7 +1113,8 @@ class _AdminRequestsSheetState extends State<_AdminRequestsSheet> {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final list = snap.data ?? [];
+                // 제안사항([제안]) 제외, 카페 등록/삭제 요청만 표시
+                final list = (snap.data ?? []).where((r) => r.cafeName != '[제안]').toList();
                 if (list.isEmpty) {
                   return const Center(child: Text('대기 중인 요청이 없습니다.', style: TextStyle(color: Colors.grey)));
                 }
@@ -1145,17 +1125,45 @@ class _AdminRequestsSheetState extends State<_AdminRequestsSheet> {
                   separatorBuilder: (ctx, i) => const SizedBox(height: 8),
                   itemBuilder: (_, i) {
                     final r = list[i];
+                    final isDeletion = r.note?.startsWith('[삭제 요청]') ?? false;
+                    final displayNote = isDeletion
+                        ? r.note!.replaceFirst('[삭제 요청]', '').trim()
+                        : r.note;
                     return Card(
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(r.cafeName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isDeletion
+                                        ? Colors.red.withValues(alpha: 0.12)
+                                        : AppColors.mintGreen.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    isDeletion ? '삭제 요청' : '등록 요청',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDeletion ? Colors.red.shade700 : AppColors.mintGreen,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(r.cafeName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ),
                             if (r.address != null && r.address!.isNotEmpty)
                               Text(r.address!, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-                            if (r.note != null && r.note!.isNotEmpty)
-                              Text('메모: ${r.note}', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                            if (displayNote != null && displayNote.isNotEmpty)
+                              Text('메모: $displayNote', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                             Text(r.createdAt.toLocal().toString().substring(0, 16), style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
                             const SizedBox(height: 8),
                             Row(
@@ -1167,9 +1175,16 @@ class _AdminRequestsSheetState extends State<_AdminRequestsSheet> {
                                 ),
                                 const SizedBox(width: 8),
                                 ElevatedButton(
-                                  onPressed: () => _approveRequest(context, r),
-                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.mintGreen),
-                                  child: const Text('승인 & 등록', style: TextStyle(color: Colors.white)),
+                                  onPressed: isDeletion
+                                      ? () => _updateStatus(context, r.id, 'completed')
+                                      : () => _approveRequest(context, r),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDeletion ? Colors.red.shade600 : AppColors.mintGreen,
+                                  ),
+                                  child: Text(
+                                    isDeletion ? '삭제 확인' : '승인 & 등록',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
                                 ),
                               ],
                             ),
@@ -1459,6 +1474,429 @@ class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
                                       backgroundColor: AppColors.mintGreen),
                                   child: const Text('수정',
                                       style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 카페 등록/삭제 요청 바텀시트 ─────────────────────────────────
+class _CafeRequestSheet extends StatefulWidget {
+  final CafeRequestsRepository repo;
+  final SupabaseClient supabaseClient;
+  final Future<void> Function(BadgeInfo badge) onBadgeEarned;
+  const _CafeRequestSheet({
+    required this.repo,
+    required this.supabaseClient,
+    required this.onBadgeEarned,
+  });
+
+  @override
+  State<_CafeRequestSheet> createState() => _CafeRequestSheetState();
+}
+
+class _CafeRequestSheetState extends State<_CafeRequestSheet> {
+  String _type = '등록';
+  final _nameCtrl = TextEditingController();
+  final _addrCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _addrCtrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    setState(() => _submitting = true);
+    try {
+      final rawNote = _noteCtrl.text.trim();
+      final note = _type == '삭제'
+          ? '[삭제 요청] $rawNote'.trim()
+          : rawNote.isEmpty ? null : rawNote;
+      final addr = _addrCtrl.text.trim();
+      await widget.repo.submitRequest(
+        cafeName: name,
+        address: addr.isEmpty ? null : addr,
+        note: note,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('요청이 접수되었습니다. 검토 후 처리될 예정입니다.')),
+      );
+      final badge = await BadgeService.awardInstantBadge(
+        client: widget.supabaseClient,
+        badgeId: 'B29',
+      );
+      if (badge != null && mounted) await widget.onBadgeEarned(badge);
+    } catch (_) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottom),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('카페 등록/삭제 요청', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          // 유형 선택
+          Row(
+            children: [
+              _TypeChip(label: '등록 요청', selected: _type == '등록', onTap: () => setState(() => _type = '등록')),
+              const SizedBox(width: 8),
+              _TypeChip(label: '삭제 요청', selected: _type == '삭제', onTap: () => setState(() => _type = '삭제')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _nameCtrl,
+            decoration: InputDecoration(
+              labelText: '카페 이름 *',
+              hintText: _type == '등록' ? '예) 조용한카페 청주점' : '예) 폐업한 카페 이름',
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _addrCtrl,
+            decoration: InputDecoration(
+              labelText: '주소 (선택)',
+              hintText: _type == '등록' ? '예) 충북 청주시 흥덕구 ...' : '예) 폐업 카페 주소',
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _noteCtrl,
+            maxLines: 2,
+            decoration: InputDecoration(
+              labelText: _type == '등록' ? '추가 메모 (선택)' : '삭제 사유 (선택)',
+              hintText: _type == '등록' ? '운영 시간, 특이사항 등' : '예) 폐업함, 이전함 등',
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.mintGreen,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: _submitting
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('요청하기', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _TypeChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.mintGreen : AppColors.mintGreen.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.mintGreen,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── 제안사항 바텀시트 ──────────────────────────────────────────────
+class _SuggestionSheet extends StatefulWidget {
+  final CafeRequestsRepository repo;
+  final SupabaseClient supabaseClient;
+  final Future<void> Function(BadgeInfo badge) onBadgeEarned;
+  const _SuggestionSheet({
+    required this.repo,
+    required this.supabaseClient,
+    required this.onBadgeEarned,
+  });
+
+  @override
+  State<_SuggestionSheet> createState() => _SuggestionSheetState();
+}
+
+class _SuggestionSheetState extends State<_SuggestionSheet> {
+  static const _kDateKey = 'suggestion_daily_date';
+  static const _kCountKey = 'suggestion_daily_count';
+  static const _kDailyLimit = 3;
+
+  final _ctrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<bool> _isDailyLimitReached() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toLocal();
+    final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final savedDate = prefs.getString(_kDateKey);
+    if (savedDate != dateStr) {
+      await prefs.setString(_kDateKey, dateStr);
+      await prefs.setInt(_kCountKey, 0);
+      return false;
+    }
+    return (prefs.getInt(_kCountKey) ?? 0) >= _kDailyLimit;
+  }
+
+  Future<void> _incrementDailyCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final count = prefs.getInt(_kCountKey) ?? 0;
+    await prefs.setInt(_kCountKey, count + 1);
+  }
+
+  Future<void> _submit() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty) return;
+
+    if (await _isDailyLimitReached()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('오늘 제안사항 한도(3개)에 도달했습니다. 내일 다시 시도해주세요.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final moderationError = await ModerationService.validate(text);
+    if (moderationError != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(moderationError), duration: const Duration(seconds: 3)),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await widget.repo.submitRequest(cafeName: '[제안]', note: text);
+      await _incrementDailyCount();
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('제안사항이 전달되었습니다. 감사합니다!')),
+      );
+      final badge = await BadgeService.awardInstantBadge(
+        client: widget.supabaseClient,
+        badgeId: 'B29',
+      );
+      if (badge != null && mounted) await widget.onBadgeEarned(badge);
+    } catch (_) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottom),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('제안사항', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(
+            '서비스 개선을 위한 의견을 자유롭게 적어주세요. (일일 3회 제한)',
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _ctrl,
+            maxLines: 4,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              hintText: '예) 특정 기능 추가, 불편한 점, 개선 아이디어 등',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.mintGreen,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: _submitting
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('전달하기', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 관리자: 제안사항 목록 바텀시트 ──────────────────────────────────
+class _AdminSuggestionsSheet extends StatefulWidget {
+  final CafeRequestsRepository repo;
+  const _AdminSuggestionsSheet({required this.repo});
+
+  @override
+  State<_AdminSuggestionsSheet> createState() => _AdminSuggestionsSheetState();
+}
+
+class _AdminSuggestionsSheetState extends State<_AdminSuggestionsSheet> {
+  late Future<List<CafeRequest>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.repo.fetchPending();
+  }
+
+  void _refresh() => setState(() => _future = widget.repo.fetchPending());
+
+  /// 제안사항 삭제: status를 'rejected'로 변경 (RLS DELETE 불가 → UPDATE 우회)
+  Future<void> _deleteRequest(BuildContext context, String id) async {
+    try {
+      await widget.repo.updateStatus(id, 'rejected');
+      _refresh();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('오류: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      builder: (_, ctrl) => Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('제안사항 목록', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Expanded(
+            child: FutureBuilder<List<CafeRequest>>(
+              future: _future,
+              builder: (ctx, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = (snap.data ?? []).where((r) => r.cafeName == '[제안]').toList();
+                if (list.isEmpty) {
+                  return const Center(child: Text('제안사항이 없습니다.', style: TextStyle(color: Colors.grey)));
+                }
+                return ListView.separated(
+                  controller: ctrl,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: list.length,
+                  separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final r = list[i];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(r.note ?? '', style: const TextStyle(fontSize: 14, height: 1.5)),
+                            const SizedBox(height: 4),
+                            Text(r.createdAt.toLocal().toString().substring(0, 16),
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () => _deleteRequest(context, r.id),
+                                  child: const Text('삭제', style: TextStyle(color: Colors.red)),
                                 ),
                               ],
                             ),

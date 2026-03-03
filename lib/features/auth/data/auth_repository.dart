@@ -85,12 +85,22 @@ class AuthRepository {
   }
 
   /// Deletes all user data then signs out.
+  /// Uses delete_my_account_data() RPC (SECURITY DEFINER, bypasses RLS).
+  /// Falls back to individual deletes if RPC is not available.
   Future<void> deleteAccount() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return;
-    await _client.from('reports').delete().eq('user_id', uid);
-    await _client.from('user_profiles').delete().eq('user_id', uid);
-    await _client.from('user_stats').delete().eq('user_id', uid);
+
+    try {
+      await _client.rpc('delete_my_account_data');
+    } catch (_) {
+      // RPC not yet applied — individual deletes (may be blocked by RLS)
+      await _client.from('reports').delete().eq('user_id', uid);
+      await _client.from('user_badges').delete().eq('user_id', uid);
+      await _client.from('user_bookmarks').delete().eq('user_id', uid);
+      await _client.from('user_profiles').delete().eq('user_id', uid);
+      await _client.from('user_stats').delete().eq('user_id', uid);
+    }
     await _client.auth.signOut();
   }
 

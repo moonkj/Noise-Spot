@@ -7,7 +7,7 @@ class AppStrings {
 
   // Privacy — fixed notice (displayed on all measurement & settings screens)
   static const String privacyNoticeMeasure =
-      '음성은 저장되지 않으며 소음 수치(dB)만 기록됩니다.';
+      '음성은 저장되지 않으며 데시벨(dB)만 기록됩니다.';
   static const String privacyNoticeSettings =
       '소음은 수치(dB)만 추출하며 절대 저장되지 않습니다.';
 

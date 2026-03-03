@@ -222,6 +222,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             total: total,
                             totalCafes: totalCafes,
                             totalXp: totalXp),
+                        const SizedBox(height: 12),
+                        _MyMapEntryCard(totalCafes: totalCafes),
                         const SizedBox(height: 16),
                         _BadgeSection(badges: badges),
                         const SizedBox(height: 20),
@@ -244,15 +246,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   data: (reports) {
                     if (reports.isEmpty) {
                       return SliverMainAxisGroup(slivers: [
-                        const SliverToBoxAdapter(
+                        SliverToBoxAdapter(
                           child: Padding(
-                            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                             child: Text(
                               '내 측정 기록',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF1A1A1A),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -271,12 +273,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 const EdgeInsets.fromLTRB(16, 0, 16, 8),
                             child: Row(
                               children: [
-                                const Text(
+                                Text(
                                   '내 측정 기록',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF1A1A1A),
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                                 const Spacer(),
@@ -503,9 +505,9 @@ class _BadgePickerSheetState extends State<_BadgePickerSheet> {
       maxChildSize: 0.85,
       expand: false,
       builder: (_, scrollCtrl) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFF8F6F1),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
@@ -601,12 +603,12 @@ class _BadgePickerSheetState extends State<_BadgePickerSheet> {
                             decoration: BoxDecoration(
                               color: isActive
                                   ? AppColors.mintGreen.withValues(alpha: 0.15)
-                                  : Colors.white,
+                                  : Theme.of(context).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isActive
                                     ? AppColors.mintGreen
-                                    : Colors.grey.shade200,
+                                    : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                                 width: isActive ? 2 : 1,
                               ),
                             ),
@@ -648,7 +650,7 @@ class _BadgePickerSheetState extends State<_BadgePickerSheet> {
                                         : FontWeight.w500,
                                     color: isActive
                                         ? AppColors.mintGreen
-                                        : const Color(0xFF666666),
+                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                     height: 1.2,
                                   ),
                                 ),
@@ -1542,6 +1544,66 @@ class _BookmarkedSpotTile extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// My Map Entry Card
+// ──────────────────────────────────────────────────────────────
+class _MyMapEntryCard extends StatelessWidget {
+  final int totalCafes;
+  const _MyMapEntryCard({required this.totalCafes});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.go('/my-map'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.mintGreen.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.mintGreen.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.map_outlined, color: AppColors.mintGreen, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '내 탐험 지도 보기',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.mintGreen,
+                    ),
+                  ),
+                  Text(
+                    totalCafes > 0
+                        ? '$totalCafes개 카페를 지도에서 확인하세요'
+                        : '첫 카페를 측정하고 지도를 채워보세요',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.mintGreen.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: AppColors.mintGreen.withValues(alpha: 0.6),
+              size: 20,
+            ),
+          ],
         ),
       ),
     );
