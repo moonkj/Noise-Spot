@@ -1984,3 +1984,83 @@ Phase 24 이후 추가된 신규 코드에 대한 TDD 커버리지 확보.
 flutter test → 390 tests, All Passed ✅
 flutter analyze → No issues found ✅
 ```
+
+---
+
+### Phase 31: 카페 사진 기능 + 관리자 사진 관리 (2026-03-04)
+
+#### 목표
+- 관리자 모드에 카페 사진 등록/삭제 기능 추가 (Supabase Storage 파일 업로드)
+- 카페 상세 화면에서 사진 조용히 백그라운드 로드 (유저 노출 없음)
+- 사진 로드 버그 수정 (API 키 오류)
+
+#### 주요 변경사항
+
+##### Supabase Storage 버킷
+- `supabase/migrations/025_spot_photos_bucket.sql` 생성
+  - `spot-photos` 버킷 (public, 5MB 제한, JPG/PNG/WebP)
+  - RLS 정책: 관리자(`da2a8b72-...`) 전용 업로드/수정/삭제
+
+##### 관리자 전체 스팟 조회 RPC
+- `supabase/migrations/024_admin_photo_management.sql` 생성
+  - `get_admin_photo_spots()` — google_place_id 포함 전체 스팟 반환 (사진 관리용)
+  - 기존 `get_admin_spots()`는 `WHERE google_place_id IS NULL` 필터 유지 (수동 스팟 관리용)
+
+##### spots_repository.dart
+- `PhotoAdminSpot` 모델 클래스 추가 (`id, name, googlePlaceId, formattedAddress, photoUrl, reportCount, copyWith()`)
+- `fetchSpotsForPhotoAdmin()` — `get_admin_photo_spots` RPC 호출
+- `updateSpotPhoto(String id, String? photoUrl)` — DB photo_url 직접 업데이트
+- `uploadSpotPhoto(String spotId, Uint8List bytes, String fileName)`:
+  - 5MB 클라이언트 사이드 검증
+  - MIME 타입 자동 감지 (jpg/png/webp)
+  - Supabase Storage `spots/{spotId}` upsert 업로드
+  - 업로드 후 spots 테이블 photo_url 자동 업데이트
+
+##### settings_screen.dart — 관리자 사진 관리 시트
+- "카페 사진 관리" 관리자 타일 추가
+- `_AdminPhotoSheet` StatefulWidget 신규:
+  - `DraggableScrollableController` 사용 → 검색 시 시트 위치 고정
+  - `List<PhotoAdminSpot> _allSpots` 상태 기반 (FutureBuilder 제거 → 검색 안정성)
+  - 검색: 이름/주소 통합 필터링, **전체 스팟** 대상
+  - 파일 업로드: `image_picker` (갤러리, 1200px, 85% 품질)
+  - 사진 없는 스팟: "사진 업로드" 버튼
+  - 사진 있는 스팟: 56px 썸네일 + "사진 업로드" + "삭제" 버튼
+  - 용량 안내: `JPG · PNG · WebP | 최대 5MB | 1200px 이하 권장`
+  - `ScaffoldMessenger` async 전 캡처 (`use_build_context_synchronously` 준수)
+  - 관리자 사진 변경 → DB의 `photo_url` 업데이트 → **모든 유저에게 즉시 반영**
+
+##### spot_detail_screen.dart — 사진 로드 전략
+- `_spotPhotoProvider` 수정:
+  - Supabase Storage URL (`supabase.co/storage`) → 영구적, DB 그대로 사용
+  - Google Places 스팟 → 항상 Places API (New)에서 신선한 CDN URL 재취득
+  - Google CDN URL은 ~1일 만료 → 매번 fresh fetch가 올바른 전략
+- 로딩/에러 텍스트 완전 제거 → 유저에게 보이지 않음
+
+##### pubspec.yaml
+- `image_picker: ^1.1.2` 추가
+
+#### 버그 수정: 사진이 표시되지 않는 문제
+
+**원인**: `MAPS_API_KEY` dart-define이 빌드 명령에 누락되어 `_mapsApiKey = ''`
+- `places_service.dart:320`: `if (_mapsApiKey.isEmpty) return null;` → 즉시 null 반환
+- `GOOGLE_MODERATION_KEY`(`AIzaSyButHKRma3H_x-e6K9F-_zgbZg6hYG1gI8`)를 MAPS_API_KEY로 사용해도 동일 증상 (Places API New에서 403 PERMISSION_DENIED)
+
+**수정**: 빌드 명령에 `--dart-define=MAPS_API_KEY=AIzaSyBigJrMfUqNTkMyoy_rOli5M1PRdP2YDOU` 추가
+- 이 키 = Info.plist `GMSApiKey` = Maps SDK + Places API (Old+New) 전용 키
+
+#### 신규/수정 파일
+
+| 파일 | 변경 |
+|------|------|
+| `supabase/migrations/024_admin_photo_management.sql` | 신규 — get_admin_photo_spots() RPC |
+| `supabase/migrations/025_spot_photos_bucket.sql` | 신규 — spot-photos 버킷 + RLS |
+| `lib/features/map/data/spots_repository.dart` | PhotoAdminSpot + uploadSpotPhoto() 등 추가 |
+| `lib/features/settings/presentation/settings_screen.dart` | _AdminPhotoSheet 신규 + 관리자 타일 |
+| `lib/features/explore/presentation/spot_detail_screen.dart` | _spotPhotoProvider 전략 변경 |
+| `pubspec.yaml` | image_picker 추가 |
+
+#### 최종 상태
+```
+flutter analyze → No issues found ✅
+빌드 명령에 MAPS_API_KEY 추가 → 사진 정상 로드 ✅
+```

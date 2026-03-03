@@ -334,7 +334,7 @@ class SpotInfoCard extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: onReport,
-                    child: const Text('지금 소음 측정하기'),
+                    child: const Text('바이브 체크하기'),
                   ),
                 ),
                 if (onDetail != null) ...[

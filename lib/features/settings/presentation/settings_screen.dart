@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -291,6 +292,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     subtitle: '직접 등록한 카페 수정 / 삭제',
                     showArrow: true,
                     onTap: () => _showAdminSpotsSheet(context),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.add_photo_alternate_outlined,
+                    title: '카페 사진 관리',
+                    subtitle: '사진 자동 조회 · 직접 등록',
+                    showArrow: true,
+                    onTap: () => _showAdminPhotoSheet(context),
                   ),
                   _SettingsTile(
                     icon: Icons.add_location_alt_outlined,
@@ -616,6 +624,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 
+  void _showAdminPhotoSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AdminPhotoSheet(
+        spotsRepo: ref.read(spotsRepositoryProvider),
+      ),
+    );
+  }
+
   void _showAdminRequestsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -738,7 +759,290 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
+// ── 관리자: 카페 사진 관리 바텀시트 ──────────────────────────────────
+class _AdminPhotoSheet extends StatefulWidget {
+  final SpotsRepository spotsRepo;
+  const _AdminPhotoSheet({required this.spotsRepo});
 
+  @override
+  State<_AdminPhotoSheet> createState() => _AdminPhotoSheetState();
+}
+
+class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
+  final _sheetCtrl = DraggableScrollableController();
+  final _searchCtrl = TextEditingController();
+  final _picker = ImagePicker();
+  final Map<String, bool> _uploading = {};
+
+  List<PhotoAdminSpot> _allSpots = [];
+  bool _loading = true;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _sheetCtrl.dispose();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final spots = await widget.spotsRepo.fetchSpotsForPhotoAdmin();
+      if (mounted) setState(() { _allSpots = spots; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  List<PhotoAdminSpot> get _filtered => _query.isEmpty
+      ? _allSpots
+      : _allSpots.where((s) => s.name.toLowerCase().contains(_query)).toList();
+
+  Future<void> _uploadPhoto(BuildContext context, PhotoAdminSpot spot) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final xfile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      maxHeight: 1200,
+      imageQuality: 85,
+    );
+    if (xfile == null || !mounted) return;
+
+    setState(() => _uploading[spot.id] = true);
+    try {
+      final bytes = await xfile.readAsBytes();
+      await widget.spotsRepo.uploadSpotPhoto(spot.id, bytes, xfile.name);
+      await _load();
+      if (mounted) {
+        messenger.showSnackBar(const SnackBar(content: Text('사진이 등록되었습니다')));
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('업로드 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading.remove(spot.id));
+    }
+  }
+
+  Future<void> _deletePhoto(BuildContext context, PhotoAdminSpot spot) async {
+    await widget.spotsRepo.updateSpotPhoto(spot.id, null);
+    await _load();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('사진이 삭제되었습니다')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      controller: _sheetCtrl,
+      expand: false,
+      initialChildSize: 0.85,
+      maxChildSize: 0.95,
+      builder: (_, scrollCtrl) => Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(height: 14),
+          const Text('카페 사진 관리',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(
+            'JPG · PNG · WebP  |  최대 5MB  |  1200px 이하 권장',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: '카페 이름으로 검색',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+              onChanged: (v) =>
+                  setState(() => _query = v.trim().toLowerCase()),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          _query.isEmpty ? '스팟이 없습니다.' : '검색 결과가 없습니다.',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        itemCount: _filtered.length,
+                        separatorBuilder: (ctx, i) =>
+                            const SizedBox(height: 6),
+                        itemBuilder: (_, i) {
+                          final s = _filtered[i];
+                          final busy = _uploading[s.id] == true;
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(s.name,
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight:
+                                                        FontWeight.w700)),
+                                            if (s.formattedAddress !=
+                                                    null &&
+                                                s.formattedAddress!
+                                                    .isNotEmpty)
+                                              Text(s.formattedAddress!,
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors
+                                                          .grey.shade600)),
+                                            const SizedBox(height: 2),
+                                            Row(children: [
+                                              Icon(
+                                                s.photoUrl != null
+                                                    ? Icons
+                                                        .check_circle_rounded
+                                                    : Icons.cancel_rounded,
+                                                size: 13,
+                                                color: s.photoUrl != null
+                                                    ? Colors.green
+                                                    : Colors.grey.shade400,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                s.photoUrl != null
+                                                    ? '사진 있음'
+                                                    : '사진 없음',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: s.photoUrl != null
+                                                      ? Colors.green
+                                                      : Colors
+                                                          .grey.shade400,
+                                                ),
+                                              ),
+                                            ]),
+                                          ],
+                                        ),
+                                      ),
+                                      if (s.photoUrl != null)
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: Image.network(
+                                            s.photoUrl!,
+                                            width: 56,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stack) =>
+                                                    const SizedBox(),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.end,
+                                    children: [
+                                      if (s.photoUrl != null)
+                                        TextButton(
+                                          onPressed: busy
+                                              ? null
+                                              : () => _deletePhoto(
+                                                  context, s),
+                                          child: const Text('삭제',
+                                              style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontSize: 12)),
+                                        ),
+                                      const SizedBox(width: 4),
+                                      ElevatedButton.icon(
+                                        onPressed: busy
+                                            ? null
+                                            : () =>
+                                                _uploadPhoto(context, s),
+                                        icon: busy
+                                            ? const SizedBox(
+                                                width: 13,
+                                                height: 13,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color:
+                                                            Colors.white))
+                                            : const Icon(
+                                                Icons.upload_rounded,
+                                                size: 14),
+                                        label: Text(
+                                            busy ? '업로드 중…' : '사진 업로드',
+                                            style: const TextStyle(
+                                                fontSize: 12)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.mintGreen,
+                                          foregroundColor: Colors.white,
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 6),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize
+                                              .shrinkWrap,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _ThemeModeTile extends ConsumerWidget {
   const _ThemeModeTile();
 

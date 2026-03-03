@@ -43,6 +43,9 @@ dependencies:
   # HTTP (Places Autocomplete API)
   http: ^1.2.0
 
+  # Image Picker (admin photo upload)
+  image_picker: ^1.1.2
+
   # Share
   share_plus: ^10.0.2
 

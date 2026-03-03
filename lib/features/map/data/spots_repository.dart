@@ -1,9 +1,48 @@
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/constants/map_constants.dart';
 import '../../../core/services/places_service.dart';
 import '../domain/spot_model.dart';
+
+/// Spot with photo info — used for admin photo management UI.
+class PhotoAdminSpot {
+  final String id;
+  final String name;
+  final String? googlePlaceId;
+  final String? formattedAddress;
+  final String? photoUrl;
+  final int reportCount;
+
+  const PhotoAdminSpot({
+    required this.id,
+    required this.name,
+    this.googlePlaceId,
+    this.formattedAddress,
+    this.photoUrl,
+    required this.reportCount,
+  });
+
+  factory PhotoAdminSpot.fromJson(Map<String, dynamic> j) => PhotoAdminSpot(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        googlePlaceId: j['google_place_id'] as String?,
+        formattedAddress: j['formatted_address'] as String?,
+        photoUrl: j['photo_url'] as String?,
+        reportCount: j['report_count'] as int,
+      );
+
+  PhotoAdminSpot copyWith({String? photoUrl, bool clearPhoto = false}) =>
+      PhotoAdminSpot(
+        id: id,
+        name: name,
+        googlePlaceId: googlePlaceId,
+        formattedAddress: formattedAddress,
+        photoUrl: clearPhoto ? null : (photoUrl ?? this.photoUrl),
+        reportCount: reportCount,
+      );
+}
 
 /// Manually registered spot — used for admin management UI.
 class AdminSpot {
@@ -169,6 +208,49 @@ class SpotsRepository {
   /// Delete a spot (and cascade-deletes its reports via FK).
   Future<void> deleteSpot(String id) async {
     await _client.from('spots').delete().eq('id', id);
+  }
+
+  /// Fetch all spots for admin photo management.
+  Future<List<PhotoAdminSpot>> fetchSpotsForPhotoAdmin() async {
+    final data = await _client.rpc('get_admin_photo_spots');
+    return (data as List)
+        .map((e) => PhotoAdminSpot.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Update (or clear) the photo_url for a spot.
+  Future<void> updateSpotPhoto(String id, String? photoUrl) async {
+    await _client.from('spots').update({'photo_url': photoUrl}).eq('id', id);
+  }
+
+  /// Upload [bytes] to Supabase Storage (spot-photos bucket) and persist public URL.
+  /// [fileName] is used only for MIME-type detection.
+  /// Max 5 MB enforced client-side (server also enforces via bucket config).
+  Future<String> uploadSpotPhoto(
+      String spotId, Uint8List bytes, String fileName) async {
+    const maxBytes = 5 * 1024 * 1024;
+    if (bytes.lengthInBytes > maxBytes) {
+      throw Exception('파일 크기가 5MB를 초과합니다 (${(bytes.lengthInBytes / 1024 / 1024).toStringAsFixed(1)} MB)');
+    }
+
+    final lower = fileName.toLowerCase();
+    final mimeType = lower.endsWith('.png')
+        ? 'image/png'
+        : lower.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+
+    // Fixed path per spot — upsert overwrites previous photo
+    final path = 'spots/$spotId';
+    await _client.storage.from('spot-photos').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: mimeType, upsert: true),
+        );
+
+    final url = _client.storage.from('spot-photos').getPublicUrl(path);
+    await updateSpotPhoto(spotId, url);
+    return url;
   }
 }
 

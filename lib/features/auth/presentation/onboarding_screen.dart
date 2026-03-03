@@ -10,61 +10,6 @@ import '../../../core/services/nickname_service.dart';
 import '../data/auth_repository.dart';
 import 'widgets/flowing_wave_painter.dart';
 
-// Feature highlights data
-const _kFeatures = [
-  (icon: Icons.graphic_eq_rounded, label: '바이브 체크', desc: '카페 분위기를 직접 측정해요'),
-  (icon: Icons.explore_outlined, label: '주변 카페 탐색', desc: '내 취향에 맞는 카페를 한눈에'),
-  (icon: Icons.emoji_events_outlined, label: '랭킹 & 뱃지', desc: '측정 기여로 배지를 모아보세요'),
-];
-
-class _FeatureHighlights extends StatelessWidget {
-  const _FeatureHighlights();
-
-  @override
-  Widget build(BuildContext context) {
-    final labelColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75);
-    final descColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45);
-    return Column(
-      children: _kFeatures.map((f) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.mintGreen.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(f.icon, size: 20, color: AppColors.mintGreen),
-            ),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  f.label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: labelColor,
-                  ),
-                ),
-                Text(
-                  f.desc,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: descColor,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      )).toList(),
-    );
-  }
-}
 
 /// Login screen: shows brand animation for 1.5 s, then fades in
 /// Apple Sign In (iOS only) and Google Sign In buttons.
@@ -87,10 +32,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void initState() {
     super.initState();
 
-    // 흐르는 파형 — 6초 주기로 무한 반복
+    // 흐르는 파형 — 30초 주기로 무한 반복
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 12),
+      duration: const Duration(seconds: 15),
     )..repeat();
 
     // 1.5초 후 로그인 버튼 페이드인
@@ -162,62 +107,65 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       body: Container(
         decoration: BoxDecoration(gradient: bgGradient),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              children: [
-                const Spacer(flex: 2),
-                // 흐르는 파형 애니메이션
-                SizedBox(
-                  height: 170,
-                  child: AnimatedBuilder(
-                    animation: _waveController,
-                    builder: (context, _) => CustomPaint(
-                      painter: FlowingWavePainter(
-                        animation: _waveController.value,
-                        isDark: isDark,
-                      ),
-                      size: const Size(double.infinity, 170),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(flex: 2),
+              // 흐르는 파형 애니메이션 — 전체 너비(패딩 없음), 높이 170
+              SizedBox(
+                height: 170,
+                child: AnimatedBuilder(
+                  animation: _waveController,
+                  builder: (context, _) => CustomPaint(
+                    painter: FlowingWavePainter(
+                      animation: _waveController.value,
+                      isDark: isDark,
                     ),
+                    size: const Size(double.infinity, 170),
                   ),
                 ),
-                const SizedBox(height: 32),
-                // App name
-                Text(
-                  AppStrings.appName,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    foreground: Paint()
-                      ..shader = const LinearGradient(
-                        colors: [AppColors.mintGreen, AppColors.skyBlue],
-                      ).createShader(const Rect.fromLTWH(0, 0, 200, 50)),
-                  ),
-                )
-                    .animate()
-                    .fadeIn(delay: 400.ms, duration: 600.ms)
-                    .slideY(begin: 0.2, end: 0),
-                const SizedBox(height: 12),
-                // Slogan
-                Text(
-                  AppStrings.appSlogan,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: sloganColor,
-                        height: 1.5,
+              ),
+              // 텍스트 + 버튼은 horizontal padding 적용
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 32),
+                    // App name
+                    Text(
+                      AppStrings.appName,
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        foreground: Paint()
+                          ..shader = const LinearGradient(
+                            colors: [AppColors.mintGreen, AppColors.skyBlue],
+                          ).createShader(const Rect.fromLTWH(0, 0, 200, 50)),
                       ),
-                )
-                    .animate()
-                    .fadeIn(delay: 700.ms, duration: 600.ms)
-                    .slideY(begin: 0.2, end: 0),
-                const Spacer(flex: 2),
-                // Feature highlights
-                const _FeatureHighlights()
-                    .animate()
-                    .fadeIn(delay: 1000.ms, duration: 700.ms)
-                    .slideY(begin: 0.15, end: 0),
-                const Spacer(flex: 1),
-                // Login buttons area
-                AnimatedOpacity(
+                    )
+                        .animate()
+                        .fadeIn(delay: 400.ms, duration: 600.ms)
+                        .slideY(begin: 0.2, end: 0),
+                    const SizedBox(height: 12),
+                    // Slogan
+                    Text(
+                      AppStrings.appSlogan,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: sloganColor,
+                            height: 1.5,
+                          ),
+                    )
+                        .animate()
+                        .fadeIn(delay: 700.ms, duration: 600.ms)
+                        .slideY(begin: 0.2, end: 0),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: AnimatedOpacity(
                   opacity: _showButtons ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 600),
                   child: _isLoading
@@ -305,9 +253,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                           ],
                         ),
                 ),
-                const SizedBox(height: 48),
-              ],
-            ),
+              ),
+              const SizedBox(height: 48),
+            ],
           ),
         ),
       ),

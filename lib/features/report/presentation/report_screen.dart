@@ -13,6 +13,8 @@ import '../../map/domain/spot_model.dart';
 import '../../map/presentation/map_controller.dart' show mapControllerProvider;
 import '../../profile/presentation/profile_screen.dart'
     show profileStatsProvider, profileReportsProvider, profileBadgeDataProvider;
+import '../../explore/presentation/spot_detail_screen.dart'
+    show spotLiveStatsProvider, spotRecentReportsProvider;
 import '../../ranking/data/ranking_repository.dart'
     show quietCafeRankingProvider, userRankingProvider, weeklyCafeRankingProvider;
 import '../../profile/presentation/widgets/badge_earned_popup.dart';
@@ -119,6 +121,11 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ref.invalidate(weeklyCafeRankingProvider);
         // Reload map spots so markers reflect updated average_db / report_count
         ref.read(mapControllerProvider.notifier).reloadSpots();
+        // SpotDetailScreen의 live stats + recent reports 갱신 (stale 방지)
+        if (widget.spotId != null) {
+          ref.invalidate(spotLiveStatsProvider(widget.spotId!));
+          ref.invalidate(spotRecentReportsProvider(widget.spotId!));
+        }
         _checkBadgesAfterSubmit();
       }
     });
@@ -782,7 +789,7 @@ class _MemoInput extends StatelessWidget {
           maxLength: 30,
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(
-            labelText: '메모 (선택)',
+            labelText: '카페를 한마디로.. (선택)',
             hintText: '예) 창가 자리 분위기 최고',
             hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
             errorText: errorText,

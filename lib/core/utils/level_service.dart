@@ -97,6 +97,7 @@ class BadgeStats {
   final int maxCafesOneDay;          // max distinct spots in one calendar day
   final int totalStickerCount;       // reports with sticker selected
   final int memoReportCount;         // reports with tag_text
+  final int uniqueDistrictCount;     // distinct districts (구) explored
 
   const BadgeStats({
     required this.totalReports,
@@ -124,6 +125,7 @@ class BadgeStats {
     required this.maxCafesOneDay,
     required this.totalStickerCount,
     required this.memoReportCount,
+    required this.uniqueDistrictCount,
   });
 
   factory BadgeStats.empty() => const BadgeStats(
@@ -152,6 +154,7 @@ class BadgeStats {
     maxCafesOneDay: 0,
     totalStickerCount: 0,
     memoReportCount: 0,
+    uniqueDistrictCount: 0,
   );
 }
 
@@ -335,6 +338,18 @@ abstract class LevelService {
         condition: '서로 다른 3개 도시에서 측정', xpReward: 50,
         category: BadgeCategory.exploration,
         unlocked: e('B16', s.uniqueCityCount >= 3),
+      ),
+      BadgeInfo(
+        id: 'B31', emoji: '🗺️', label: '지역 탐험가',
+        condition: '서로 다른 3개 동네에서 측정', xpReward: 15,
+        category: BadgeCategory.exploration,
+        unlocked: e('B31', s.uniqueDistrictCount >= 3),
+      ),
+      BadgeInfo(
+        id: 'B32', emoji: '🏙️', label: '서울 탐험가',
+        condition: '서로 다른 8개 동네에서 측정', xpReward: 30,
+        category: BadgeCategory.exploration,
+        unlocked: e('B32', s.uniqueDistrictCount >= 8),
       ),
 
       // ── Cat 4: 바이브 감별 (B17–B22) ─────────────────────

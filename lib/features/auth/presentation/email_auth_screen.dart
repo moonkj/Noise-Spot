@@ -120,6 +120,8 @@ class _EmailAuthScreenState extends ConsumerState<EmailAuthScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
         child: SafeArea(
           child: SingleChildScrollView(

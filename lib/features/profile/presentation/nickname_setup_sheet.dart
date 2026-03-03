@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/moderation_service.dart';
 import '../../../core/services/nickname_service.dart';
 import '../data/profile_repository.dart';
 
@@ -27,6 +28,16 @@ class _NicknameSetupSheetState extends ConsumerState<NicknameSetupSheet> {
     setState(() => _isSaving = true);
     try {
       final name = _controller.text.trim();
+      // 0. 콘텐츠 모더레이션 (로컬 필터 + Google NL API)
+      final moderationError = await ModerationService.validate(name);
+      if (moderationError != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(moderationError)),
+          );
+        }
+        return;
+      }
       // 1. 로컬 먼저 저장 (즉각 UI 반영)
       await ref.read(nicknameProvider.notifier).set(name);
       // 2. 시트 닫기

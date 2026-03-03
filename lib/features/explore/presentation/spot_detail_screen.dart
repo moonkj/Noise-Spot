@@ -1,4 +1,3 @@
-import 'dart:async' show unawaited;
 import 'dart:math' show cos, sin, pi;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,27 +39,18 @@ final spotRecentReportsProvider = FutureProvider.autoDispose
 );
 
 /// Fetches a photo URL for the given spot.
-/// Uses cached photo_url from SpotModel if available; otherwise calls
-/// Google Places (New) API and stores the result in DB for future visits.
+/// - Admin-uploaded photos (Supabase Storage URLs) are permanent → use from DB.
+/// - Google Places CDN URLs expire after ~1 day → always fetch fresh from API.
 final _spotPhotoProvider =
     FutureProvider.autoDispose.family<String?, SpotModel>((ref, spot) async {
-  if (spot.photoUrl != null) return spot.photoUrl;
-  if (spot.googlePlaceId == null) return null;
-
-  final url = await ref
-      .read(placesServiceProvider)
-      .getPhotoUrl(spot.googlePlaceId!);
-
-  if (url != null) {
-    unawaited(
-      ref
-          .read(supabaseClientProvider)
-          .from('spots')
-          .update({'photo_url': url})
-          .eq('id', spot.id),
-    );
+  // Supabase Storage URLs are permanent (admin-uploaded).
+  final cached = spot.photoUrl;
+  if (cached != null && cached.contains('supabase.co/storage')) {
+    return cached;
   }
-  return url;
+  // Google Places spots: always fetch a fresh CDN URL.
+  if (spot.googlePlaceId == null) return null;
+  return ref.read(placesServiceProvider).getPhotoUrl(spot.googlePlaceId!);
 });
 
 // ──────────────────────────────────────────────────────────────
