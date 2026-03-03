@@ -314,47 +314,47 @@ class PlacesService {
     }
   }
 
-  /// Returns a cacheable photo URL for [placeId] using Google Places (New) API.
-  /// Returns null if no photos are available, the key is missing, or on error.
+  /// Returns a photo URL for [placeId] using the legacy Places API.
+  /// Gets photo_reference via Place Details, then constructs the Photo URL.
+  /// Image.network follows the 302 redirect to Google's CDN automatically.
   Future<String?> getPhotoUrl(String placeId, {int maxWidth = 600}) async {
     if (_mapsApiKey.isEmpty) return null;
     try {
-      // Step 1: Fetch the first photo name via Place Details (New) API.
+      // Step 1: Get photo_reference via Place Details (legacy Places API).
       final detailsUri = Uri.https(
-        'places.googleapis.com',
-        '/v1/places/$placeId',
-        {'key': _mapsApiKey},
-      );
-      final detailsResp = await _client
-          .get(detailsUri, headers: {'X-Goog-FieldMask': 'photos'})
-          .timeout(const Duration(seconds: 8));
-      if (detailsResp.statusCode != 200) return null;
-
-      final detailsData =
-          json.decode(detailsResp.body) as Map<String, dynamic>;
-      final photos = detailsData['photos'] as List<dynamic>?;
-      if (photos == null || photos.isEmpty) return null;
-      final photoName =
-          (photos[0] as Map<String, dynamic>)['name'] as String?;
-      if (photoName == null) return null;
-
-      // Step 2: Resolve the serving URL via photo media endpoint.
-      // skipHttpRedirect=true → returns JSON { "photoUri": "https://..." }
-      final mediaUri = Uri.https(
-        'places.googleapis.com',
-        '/v1/$photoName/media',
+        'maps.googleapis.com',
+        '/maps/api/place/details/json',
         {
-          'maxWidthPx': '$maxWidth',
+          'place_id': placeId,
+          'fields': 'photos',
           'key': _mapsApiKey,
-          'skipHttpRedirect': 'true',
         },
       );
-      final mediaResp =
-          await _client.get(mediaUri).timeout(const Duration(seconds: 8));
-      if (mediaResp.statusCode != 200) return null;
-      final mediaData =
-          json.decode(mediaResp.body) as Map<String, dynamic>;
-      return mediaData['photoUri'] as String?;
+      final detailsResp =
+          await _client.get(detailsUri).timeout(const Duration(seconds: 8));
+      if (detailsResp.statusCode != 200) return null;
+
+      final data = json.decode(detailsResp.body) as Map<String, dynamic>;
+      if (data['status'] != 'OK') return null;
+
+      final photos = (data['result'] as Map<String, dynamic>?)?['photos']
+          as List<dynamic>?;
+      if (photos == null || photos.isEmpty) return null;
+      final photoRef =
+          (photos[0] as Map<String, dynamic>)['photo_reference'] as String?;
+      if (photoRef == null) return null;
+
+      // Step 2: Return the photo endpoint URL.
+      // Image.network will follow the 302 redirect to the CDN automatically.
+      return Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/place/photo',
+        {
+          'maxwidth': '$maxWidth',
+          'photo_reference': photoRef,
+          'key': _mapsApiKey,
+        },
+      ).toString();
     } catch (e) {
       debugPrint('[Places] getPhotoUrl error: $e');
       return null;
