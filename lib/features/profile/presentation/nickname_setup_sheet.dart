@@ -81,18 +81,21 @@ class _NicknameSetupSheetState extends ConsumerState<NicknameSetupSheet> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               '카페바이브에 오신걸 환영해요! 👋',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '닉네임을 설정하면 랭킹에 이름이 표시돼요',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
             const SizedBox(height: 28),
             TextFormField(
@@ -166,7 +169,9 @@ class _NicknameSetupSheetState extends ConsumerState<NicknameSetupSheet> {
                 },
                 child: Text(
                   '나중에 설정',
-                  style: TextStyle(color: Colors.grey.shade500),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
               ),
             ),

@@ -118,7 +118,10 @@ class _StickerCardGridState extends State<StickerCardGrid> {
               const Spacer(),
               Text(
                 '← 스와이프 →',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
               ),
             ],
           ),

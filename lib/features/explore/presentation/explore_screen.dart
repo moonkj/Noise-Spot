@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/widgets/app_loading.dart';
 import '../../../core/services/location_service.dart';
 import '../../../features/map/data/spots_repository.dart';
 import '../../../features/map/domain/spot_model.dart';
@@ -67,9 +68,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: spotsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.mintGreen),
-        ),
+        loading: AppLoading.fullScreen,
         error: (e, _) => _ErrorView(onRetry: () => ref.invalidate(nearbySpotsProvider)),
         data: (spots) {
           final filtered = _applyFilter(spots);

@@ -270,7 +270,7 @@ class _BadgeCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -278,7 +278,7 @@ class _BadgeCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade400,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                     ),
                   ),
                 ),
@@ -290,7 +290,7 @@ class _BadgeCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: badge.unlocked
                       ? AppColors.mintGreen
-                      : Colors.grey.shade400,
+                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ),
             ],

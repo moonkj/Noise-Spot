@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/db_classifier.dart';
 import '../../../core/widgets/app_back_button.dart';
+import '../../../core/widgets/app_loading.dart';
 import '../../map/domain/spot_model.dart';
 import '../../map/presentation/widgets/spot_marker_widget.dart';
 import '../../report/data/report_repository.dart';
@@ -35,7 +36,7 @@ class MyMapScreen extends ConsumerWidget {
         children: [
           // ── 지도 또는 로딩/에러 ─────────────────────────────────
           spotsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: AppLoading.fullScreen,
             error: (e, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),

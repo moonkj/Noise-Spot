@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/widgets/app_loading.dart';
 import '../../../core/utils/level_service.dart' show LevelService;
 import '../../../features/map/domain/spot_model.dart';
 import '../data/ranking_repository.dart';
@@ -129,8 +130,7 @@ class _QuietCafeTab extends ConsumerWidget {
         await ref.read(quietCafeRankingProvider.future).catchError((_) => <QuietCafeRankItem>[]);
       },
       child: async.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.mintGreen)),
+        loading: AppLoading.fullScreen,
         error: (err, st) =>
             _RetryView(onRetry: () => ref.invalidate(quietCafeRankingProvider)),
         data: (list) => list.isEmpty
@@ -207,8 +207,7 @@ class _MeasurerTab extends ConsumerWidget {
         await ref.read(userRankingProvider.future).catchError((_) => <UserRankItem>[]);
       },
       child: async.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.mintGreen)),
+        loading: AppLoading.fullScreen,
         error: (err, st) =>
             _RetryView(onRetry: () => ref.invalidate(userRankingProvider)),
         data: (list) => list.isEmpty
@@ -318,8 +317,7 @@ class _WeeklyTab extends ConsumerWidget {
         await ref.read(weeklyCafeRankingProvider.future).catchError((_) => <WeeklyCafeRankItem>[]);
       },
       child: async.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.mintGreen)),
+        loading: AppLoading.fullScreen,
         error: (err, st) =>
             _RetryView(onRetry: () => ref.invalidate(weeklyCafeRankingProvider)),
         data: (list) => list.isEmpty

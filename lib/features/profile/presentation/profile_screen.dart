@@ -12,6 +12,7 @@ import '../../map/domain/spot_model.dart';
 import '../../report/data/report_repository.dart';
 import '../../report/domain/report_model.dart';
 import '../data/profile_repository.dart';
+import '../../../core/widgets/app_loading.dart';
 import 'badge_detail_sheet.dart';
 import 'nickname_setup_sheet.dart';
 import 'widgets/level_up_animation.dart';
@@ -138,9 +139,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: statsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.mintGreen),
-        ),
+        loading: AppLoading.fullScreen,
         error: (e, _) => Center(child: Text(e.toString())),
         data: (stats) {
           final total = stats['total'] as int? ?? 0;
@@ -237,9 +236,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   loading: () => const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(
-                          child: CircularProgressIndicator(
-                              color: AppColors.mintGreen)),
+                      child: AppLoading(),
                     ),
                   ),
                   error: (e, _) =>
@@ -287,12 +284,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   GestureDetector(
                                     onTap: () =>
                                         showAllReportsSheet(context, reports),
-                                    child: const Text(
-                                      '전체보기',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.mintGreen,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 12),
+                                      child: Text(
+                                        '전체보기',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.mintGreen,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -544,11 +545,18 @@ class _BadgePickerSheetState extends State<_BadgePickerSheet> {
                         widget.onClear();
                         Navigator.pop(context);
                       },
-                      child: Text(
-                        '기본으로 되돌리기',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 12),
+                        child: Text(
+                          '기본으로 되돌리기',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.5),
+                          ),
                         ),
                       ),
                     ),
@@ -888,12 +896,15 @@ class _BadgeSection extends StatelessWidget {
             const Spacer(),
             GestureDetector(
               onTap: () => showBadgeDetailSheet(context, badges),
-              child: const Text(
-                '전체보기',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.mintGreen,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                child: Text(
+                  '전체보기',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mintGreen,
+                  ),
                 ),
               ),
             ),
@@ -1375,8 +1386,7 @@ class _BookmarkedSpotsSection extends ConsumerWidget {
       loading: () => const SliverToBoxAdapter(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 48),
-          child: Center(
-              child: CircularProgressIndicator(color: AppColors.mintGreen)),
+          child: AppLoading(),
         ),
       ),
       error: (e, _) =>
