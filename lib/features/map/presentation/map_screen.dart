@@ -369,13 +369,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (!mounted) return;
     try {
 
+    // 측정 기록 없는 스팟(Google Places 자동발견, report_count=0)은 마커 제외.
+    // 탐색/검색에서는 계속 표시되고, 첫 측정 제출 후 지도에 나타남.
+    final reportedSpots = spots.where((s) => s.reportCount > 0).toList();
+
     if (mode == SpotDisplayMode.hidden) {
       if (_markerGeneration == gen && mounted) setState(() { _markers = {}; _circles = {}; });
       return;
     }
 
     if (mode == SpotDisplayMode.heatmap) {
-      final newCircles = spots.map((spot) {
+      final newCircles = reportedSpots.map((spot) {
         final color = DbClassifier.colorFromDb(spot.averageDb);
         return Circle(
           circleId: CircleId(spot.id),
@@ -395,7 +399,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final newMarkers = <Marker>{};
 
-    for (final spot in spots) {
+    for (final spot in reportedSpots) {
       final cacheKey = '${spot.id}_$isReduced';
       if (!_bitmapCache.containsKey(cacheKey)) {
         // Evict oldest entry when cache is full (FIFO)
