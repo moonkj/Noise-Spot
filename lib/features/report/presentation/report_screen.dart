@@ -789,7 +789,7 @@ class _MemoInput extends StatelessWidget {
           maxLength: 30,
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(
-            labelText: '카페를 한마디로.. (선택)',
+            labelText: '이 카페를 한마디로.. (선택)',
             hintText: '예) 창가 자리 분위기 최고',
             hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
             errorText: errorText,
