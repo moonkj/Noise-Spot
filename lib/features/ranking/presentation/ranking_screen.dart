@@ -22,6 +22,12 @@ class _RankingScreenState extends ConsumerState<RankingScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // 랭킹 탭 진입 시 항상 최신 데이터로 갱신
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(quietCafeRankingProvider);
+      ref.invalidate(userRankingProvider);
+      ref.invalidate(weeklyCafeRankingProvider);
+    });
   }
 
   @override
@@ -116,15 +122,22 @@ class _QuietCafeTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(quietCafeRankingProvider);
-    return async.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.mintGreen)),
-      error: (err, st) =>
-          _RetryView(onRetry: () => ref.invalidate(quietCafeRankingProvider)),
-      data: (list) => list.isEmpty
-          ? const _EmptyRankView()
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+    return RefreshIndicator(
+      color: AppColors.mintGreen,
+      onRefresh: () async {
+        ref.invalidate(quietCafeRankingProvider);
+        await ref.read(quietCafeRankingProvider.future).catchError((_) => <QuietCafeRankItem>[]);
+      },
+      child: async.when(
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.mintGreen)),
+        error: (err, st) =>
+            _RetryView(onRetry: () => ref.invalidate(quietCafeRankingProvider)),
+        data: (list) => list.isEmpty
+            ? const _EmptyRankView()
+            : ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               itemCount: list.length,
               itemBuilder: (ctx, i) {
                 final item = list[i];
@@ -172,6 +185,7 @@ class _QuietCafeTab extends ConsumerWidget {
                 );
               },
             ),
+      ),
     );
   }
 }
@@ -186,15 +200,22 @@ class _MeasurerTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final async = ref.watch(userRankingProvider);
-    return async.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.mintGreen)),
-      error: (err, st) =>
-          _RetryView(onRetry: () => ref.invalidate(userRankingProvider)),
-      data: (list) => list.isEmpty
-          ? const _EmptyMeasurerView()
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+    return RefreshIndicator(
+      color: AppColors.mintGreen,
+      onRefresh: () async {
+        ref.invalidate(userRankingProvider);
+        await ref.read(userRankingProvider.future).catchError((_) => <UserRankItem>[]);
+      },
+      child: async.when(
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.mintGreen)),
+        error: (err, st) =>
+            _RetryView(onRetry: () => ref.invalidate(userRankingProvider)),
+        data: (list) => list.isEmpty
+            ? const _EmptyMeasurerView()
+            : ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               itemCount: list.length,
               itemBuilder: (ctx, i) {
                 final item = list[i];
@@ -276,6 +297,7 @@ class _MeasurerTab extends ConsumerWidget {
                 );
               },
             ),
+      ),
     );
   }
 }
@@ -289,16 +311,23 @@ class _WeeklyTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(weeklyCafeRankingProvider);
-    return async.when(
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.mintGreen)),
-      error: (err, st) =>
-          _RetryView(onRetry: () => ref.invalidate(weeklyCafeRankingProvider)),
-      data: (list) => list.isEmpty
-          ? const _EmptyRankView()
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              itemCount: list.length,
+    return RefreshIndicator(
+      color: AppColors.mintGreen,
+      onRefresh: () async {
+        ref.invalidate(weeklyCafeRankingProvider);
+        await ref.read(weeklyCafeRankingProvider.future).catchError((_) => <WeeklyCafeRankItem>[]);
+      },
+      child: async.when(
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.mintGreen)),
+        error: (err, st) =>
+            _RetryView(onRetry: () => ref.invalidate(weeklyCafeRankingProvider)),
+        data: (list) => list.isEmpty
+            ? const _EmptyRankView()
+            : ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                itemCount: list.length,
               itemBuilder: (ctx, i) {
                 final item = list[i];
                 final trendUp = item.weeklyCount > 0 &&
@@ -352,6 +381,7 @@ class _WeeklyTab extends ConsumerWidget {
                 );
               },
             ),
+      ),
     );
   }
 }
