@@ -821,6 +821,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
               controller: _controller,
               focusNode: _focusNode,
               onChanged: _onChanged,
+              scrollPadding: EdgeInsets.zero, // 키보드 노출 시 자동 스크롤 방지
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: '카페, 도서관, 공원 검색...',

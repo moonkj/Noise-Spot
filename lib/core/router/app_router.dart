@@ -244,6 +244,9 @@ class _MainShellState extends State<_MainShell>
     final activeIndex = currentIndex < 0 ? 0 : currentIndex;
 
     return Scaffold(
+      // 키보드 등장 시 탭 body 전체가 줄어들지 않도록 false 고정.
+      // 각 하위 화면(ExploreScreen 등)이 자체 Scaffold에서 키보드를 처리한다.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           widget.child,
