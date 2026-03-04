@@ -98,23 +98,25 @@ class AuthRepository {
     await prefs.remove('rep_badge_id');
   }
 
-  /// Deletes all user data then signs out.
-  /// Uses delete_my_account_data() RPC (SECURITY DEFINER, bypasses RLS).
-  /// Falls back to individual deletes if RPC is not available.
+  /// Deletes all user data and the auth.users row, then signs out locally.
+  /// Calls the delete-account Edge Function which:
+  ///   1. Runs delete_my_account_data() RPC (data cleanup)
+  ///   2. Calls admin.deleteUser() via service_role (auth.users deletion)
   Future<void> deleteAccount() async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) return;
+    if (_client.auth.currentUser == null) return;
 
+    // Edge Function handles both data + auth.users deletion atomically.
+    // On failure (network / function error), still sign out locally.
     try {
-      await _client.rpc('delete_my_account_data');
+      await _client.functions.invoke('delete-account');
     } catch (_) {
-      // RPC not yet applied — individual deletes (may be blocked by RLS)
-      await _client.from('reports').delete().eq('user_id', uid);
-      await _client.from('user_badges').delete().eq('user_id', uid);
-      await _client.from('user_bookmarks').delete().eq('user_id', uid);
-      await _client.from('user_profiles').delete().eq('user_id', uid);
-      await _client.from('user_stats').delete().eq('user_id', uid);
+      // Fallback: at minimum, clean local data via RPC
+      try {
+        await _client.rpc('delete_my_account_data');
+      } catch (_) {}
     }
+
+    await _clearLocalPii();
     await _client.auth.signOut();
   }
 

@@ -694,7 +694,7 @@ class _SearchPlaceCard extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded, size: 18),
                 color: AppColors.textHint,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                 onPressed: onDismiss,
               ),
             ],

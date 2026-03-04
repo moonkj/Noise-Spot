@@ -43,6 +43,7 @@ class CafeRequestsRepository {
     String? note,
   }) async {
     final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw StateError('로그인이 필요합니다.');
     await _client.from('cafe_requests').insert({
       'user_id': uid,
       'cafe_name': cafeName,

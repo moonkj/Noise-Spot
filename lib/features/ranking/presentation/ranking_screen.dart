@@ -357,7 +357,7 @@ class _WeeklyTab extends ConsumerWidget {
                             size: 14,
                             color: trendUp
                                 ? AppColors.mintGreen
-                                : const Color(0xFFB0B0B0),
+                                : Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.4),
                           ),
                           const SizedBox(width: 2),
                           Text(
@@ -366,7 +366,7 @@ class _WeeklyTab extends ConsumerWidget {
                               fontSize: 10,
                               color: trendUp
                                   ? AppColors.mintGreen
-                                  : const Color(0xFFB0B0B0),
+                                  : Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.4),
                             ),
                           ),
                         ],

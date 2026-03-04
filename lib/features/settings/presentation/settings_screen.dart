@@ -1278,7 +1278,7 @@ class _PermissionTile extends StatelessWidget {
               onPressed: onManage,
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
-                minimumSize: const Size(40, 32),
+                minimumSize: const Size(44, 44),
               ),
               child: Text(
                 isGranted ? '설정에서 변경' : '설정에서 허용',

@@ -178,7 +178,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: Color(0xFF888888)),
+                    icon: Icon(Icons.settings_outlined,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55)),
                     onPressed: () => context.go('/settings'),
                   ),
                 ],
@@ -1189,12 +1190,12 @@ class _AllReportsSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       '내 측정 기록',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A1A),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const Spacer(),
@@ -1245,20 +1246,22 @@ class _EmptyReports extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: [
-          Icon(Icons.graphic_eq_rounded, size: 56, color: Colors.grey.shade200),
+          Icon(Icons.graphic_eq_rounded, size: 56,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15)),
           const SizedBox(height: 16),
           Text(
             '아직 측정 기록이 없어요',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade500,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             '첫 번째 카페 소음을 측정해 보세요!',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+            style: TextStyle(fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
           ),
         ],
       ),
@@ -1403,19 +1406,21 @@ class _EmptyBookmarks extends StatelessWidget {
       child: Column(
         children: [
           Icon(Icons.favorite_border,
-              size: 48, color: Colors.grey.shade300),
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2)),
           const SizedBox(height: 12),
           Text(
             '아직 찜한 카페가 없어요',
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade500),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 6),
           Text(
             '카페 상세에서 하트를 눌러 저장해보세요',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+            style: TextStyle(fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
           ),
         ],
       ),
