@@ -2898,21 +2898,21 @@ class _LegalDocPage extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: isPrivacy ? _buildPrivacy() : _buildTerms(),
+        child: isPrivacy ? _buildPrivacy(context) : _buildTerms(context),
       ),
     );
   }
 
-  Widget _buildPrivacy() {
+  Widget _buildPrivacy(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _legalHeader('Cafe Vibe 개인정보처리방침', '카페의 소음 바이브를 공유하는 커뮤니티', '시행일: 2026년 3월 4일'),
-        _section('1. 개요', [
+        _section(context, '1. 개요', [
           '카페 바이브(이하 "앱")는 카페의 소음 수준과 분위기를 기록·공유하는 iOS 앱입니다.',
           '본 방침은 앱이 수집하는 정보, 사용 목적, 보관 기간 및 사용자 권리를 설명합니다.',
         ]),
-        _section('2. 수집하는 정보', null, bullets: [
+        _section(context, '2. 수집하는 정보', null, bullets: [
           '소음 수치(dB) — 마이크로 측정한 데시벨 숫자만 저장됩니다. 음성 파일은 절대 저장되지 않습니다.',
           '위치 정보 — 앱 사용 중(When In Use)에만 현재 위치를 수집합니다.',
           '소셜 로그인 계정 정보 — Apple 또는 Google 계정으로 로그인 시 이름과 이메일 주소가 수집됩니다. (Apple 로그인은 이메일 숨기기 옵션을 지원합니다.)',
@@ -2921,24 +2921,24 @@ class _LegalDocPage extends StatelessWidget {
           '즐겨찾기(북마크) — 사용자가 저장한 카페 목록이 서버에 저장됩니다.',
           '뱃지·레벨 데이터 — 측정 횟수를 기반으로 자동 산출되는 활동 지표입니다.',
         ]),
-        _highlight('음성 녹음 파일은 절대 저장·전송되지 않습니다.\n마이크는 데시벨 수치 추출 즉시 데이터를 휘발 처리합니다.'),
-        _section('3. 수집하지 않는 정보', null, bullets: [
+        _highlight(context, '음성 녹음 파일은 절대 저장·전송되지 않습니다.\n마이크는 데시벨 수치 추출 즉시 데이터를 휘발 처리합니다.'),
+        _section(context, '3. 수집하지 않는 정보', null, bullets: [
           '음성 녹음 파일 또는 오디오 스트림',
           '연락처, 기기 사진첩, 기타 민감 정보',
           '광고 식별자(IDFA) — 앱 추적 투명성(ATT) 허용 시에도 광고 목적으로 사용하지 않습니다.',
         ]),
-        _section('4. 앱 추적 투명성(ATT)', [
+        _section(context, '4. 앱 추적 투명성(ATT)', [
           'iOS 14.5 이상에서 앱 최초 실행 시 "앱 추적 투명성" 권한을 요청합니다.',
           '이 권한은 광고 목적이 아닌 서비스 품질 개선(충돌 분석 등)을 위해 요청됩니다.',
           '허용하지 않아도 앱의 모든 기능을 정상적으로 이용할 수 있습니다.',
         ]),
-        _section('5. 정보 이용 목적', null, bullets: [
+        _section(context, '5. 정보 이용 목적', null, bullets: [
           '주변 스팟의 소음 평균 데이터 산출 및 지도 표시',
           '사용자별 리포팅 기록 및 통계 제공',
           '신뢰도 등급(Trust Score) 계산',
           '닉네임·뱃지 기반 커뮤니티 활동 지원',
         ]),
-        _section('6. 제3자 제공', [
+        _section(context, '6. 제3자 제공', [
           '수집된 정보는 원칙적으로 제3자에게 제공되지 않습니다. 단, 서비스 운영에 필요한 아래 제3자 서비스를 이용합니다.',
         ], bullets: [
           'Supabase — 데이터베이스 및 인증 (AWS ap-northeast-2 서울 리전)',
@@ -2946,40 +2946,40 @@ class _LegalDocPage extends StatelessWidget {
           'Google (Sign in with Google) — 소셜 로그인 인증',
           'Google Maps Platform — 지도 표시 및 장소 검색 (위치 정보 전송)',
         ]),
-        _section('7. 보관 기간', null, bullets: [
+        _section(context, '7. 보관 기간', null, bullets: [
           '소음 리포트 데이터: 마지막 활동일로부터 30일 이후 지도에서 비표시',
           '계정 삭제 시: 모든 리포트·북마크·닉네임·뱃지 데이터 즉시 삭제',
           '위치 정보: 앱 세션 종료 시 미저장',
         ]),
-        _section('8. 사용자 권리', null, bullets: [
+        _section(context, '8. 사용자 권리', null, bullets: [
           '데이터 열람 — 앱 내 마이페이지에서 본인의 측정 기록 확인 가능',
           '데이터 삭제 — 앱 설정 → "계정 삭제"로 모든 데이터 즉시 삭제',
           '위치 권한 철회 — 기기 설정에서 위치 권한 언제든지 거부 가능',
           '마이크 권한 철회 — 기기 설정에서 마이크 권한 언제든지 거부 가능',
         ]),
-        _section('9. 어린이 개인정보 보호', [
+        _section(context, '9. 어린이 개인정보 보호', [
           '본 앱은 만 14세 미만 아동을 대상으로 하지 않습니다.',
           '만 14세 미만은 보호자의 동의 없이 앱을 사용하지 않도록 안내합니다.',
         ]),
-        _section('10. 방침 변경', [
+        _section(context, '10. 방침 변경', [
           '본 방침이 변경될 경우 앱 업데이트 또는 공지사항을 통해 사전 안내합니다.',
           '변경 방침은 공지일로부터 7일 후 적용됩니다.',
         ]),
-        _contactBox(),
+        _contactBox(context),
       ],
     );
   }
 
-  Widget _buildTerms() {
+  Widget _buildTerms(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _legalHeader('Cafe Vibe 이용약관', '카페의 소음 바이브를 공유하는 커뮤니티', '시행일: 2026년 3월 4일'),
-        _section('제1조 (목적 및 로그인)', [
+        _section(context, '제1조 (목적 및 로그인)', [
           '본 약관은 Cafe Vibe(이하 "서비스")가 제공하는 카페 소음 측정 및 공유 서비스의 이용 조건과 절차, 이용자와 서비스 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.',
           '서비스는 Apple 또는 Google 소셜 로그인을 통해 이용할 수 있습니다. 소셜 로그인 계정 정보(이름, 이메일)는 서비스 이용을 위한 식별 목적으로만 사용됩니다.',
         ]),
-        _section('제2조 (서비스의 내용)', null, bullets: [
+        _section(context, '제2조 (서비스의 내용)', null, bullets: [
           '카페 내 소음 수치(dB) 측정 및 기록',
           '측정 데이터 기반 주변 카페 소음 지도 제공',
           '카페 분위기 스티커(딥포커스·소셜버즈·소프트바이브) 태그 공유',
@@ -2987,7 +2987,7 @@ class _LegalDocPage extends StatelessWidget {
           '닉네임 설정 및 사용자 프로필 관리',
           '사용자 레벨·뱃지 시스템을 통한 커뮤니티 참여',
         ]),
-        _section('제3조 (이용 자격 및 의무)', [
+        _section(context, '제3조 (이용 자격 및 의무)', [
           '서비스는 만 14세 이상 이용 가능합니다. 만 14세 미만은 보호자의 동의 없이 서비스를 이용할 수 없습니다.',
         ], bullets: [
           '실제 방문한 카페에서만 소음을 측정해야 합니다.',
@@ -2996,30 +2996,30 @@ class _LegalDocPage extends StatelessWidget {
           '타인의 개인정보 또는 저작권을 침해하는 행위는 금지됩니다.',
           '관련 법령을 준수하며 서비스를 이용해야 합니다.',
         ]),
-        _highlight('허위 측정 데이터 등록 또는 부적절한 닉네임 사용 등 서비스 어뷰징 행위가 확인되면 사전 경고 없이 이용이 제한될 수 있습니다.'),
-        _section('제4조 (콘텐츠 및 데이터 권리)', [
+        _highlight(context, '허위 측정 데이터 등록 또는 부적절한 닉네임 사용 등 서비스 어뷰징 행위가 확인되면 사전 경고 없이 이용이 제한될 수 있습니다.'),
+        _section(context, '제4조 (콘텐츠 및 데이터 권리)', [
           '사용자가 등록한 소음 측정 데이터(dB 수치, 스티커)는 서비스 개선 및 공익 목적(소음 지도 제공)을 위해 익명화된 형태로 활용될 수 있습니다.',
           '측정 데이터는 공개 통계에 포함될 수 있으나, 개인 식별 정보와 연결되지 않습니다.',
         ]),
-        _section('제5조 (서비스 변경 및 종료)', [
+        _section(context, '제5조 (서비스 변경 및 종료)', [
           '서비스는 사전 공지 후 내용을 변경하거나 종료할 수 있습니다.',
           '불가피한 사정이 있는 경우 사전 공지 없이 서비스가 변경 또는 종료될 수 있으며, 이로 인한 손해에 대해 서비스는 책임을 지지 않습니다.',
         ]),
-        _section('제6조 (면책사항)', null, bullets: [
+        _section(context, '제6조 (면책사항)', null, bullets: [
           '서비스는 사용자가 제공한 측정 데이터의 정확성을 보증하지 않습니다.',
           '천재지변, 네트워크 장애 등 불가항력으로 인한 서비스 중단에 대해 책임지지 않습니다.',
           '서비스 이용으로 발생하는 손해에 대해 고의·중과실이 없는 한 책임지지 않습니다.',
         ]),
-        _section('제7조 (계정 삭제)', [
+        _section(context, '제7조 (계정 삭제)', [
           '사용자는 앱 설정 → "계정 삭제"를 통해 언제든지 서비스 이용을 종료하고 모든 데이터를 삭제할 수 있습니다.',
           '계정 삭제 시 소셜 로그인 연결이 해제되며, 측정 기록·북마크·닉네임·뱃지 데이터가 즉시 삭제됩니다.',
           '삭제된 데이터는 복구되지 않습니다.',
         ]),
-        _section('제8조 (약관의 변경)', [
+        _section(context, '제8조 (약관의 변경)', [
           '서비스는 필요한 경우 본 약관을 변경할 수 있습니다.',
           '약관이 변경되는 경우 앱 업데이트 또는 공지사항을 통해 사전 안내하며, 변경 약관은 공지일로부터 7일 후 적용됩니다.',
         ]),
-        _contactBox(),
+        _contactBox(context),
       ],
     );
   }
@@ -3053,22 +3053,23 @@ class _LegalDocPage extends StatelessWidget {
     );
   }
 
-  Widget _section(String title, List<String>? paragraphs, {List<String>? bullets}) {
+  Widget _section(BuildContext context, String title, List<String>? paragraphs, {List<String>? bullets}) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final bodyStyle = TextStyle(fontSize: 14, color: onSurface.withValues(alpha: 0.8), height: 1.6);
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: onSurface)),
           const SizedBox(height: 4),
           Container(height: 2, width: 40, color: AppColors.mintGreen),
           const SizedBox(height: 10),
           if (paragraphs != null)
             ...paragraphs.map((p) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(p, style: const TextStyle(fontSize: 14, color: Color(0xFF444444), height: 1.6)),
+                  child: Text(p, style: bodyStyle),
                 )),
           if (bullets != null)
             ...bullets.map((b) => Padding(
@@ -3077,9 +3078,7 @@ class _LegalDocPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('• ', style: TextStyle(fontSize: 14, color: AppColors.mintGreen, fontWeight: FontWeight.w700)),
-                      Expanded(
-                        child: Text(b, style: const TextStyle(fontSize: 14, color: Color(0xFF444444), height: 1.6)),
-                      ),
+                      Expanded(child: Text(b, style: bodyStyle)),
                     ],
                   ),
                 )),
@@ -3088,36 +3087,46 @@ class _LegalDocPage extends StatelessWidget {
     );
   }
 
-  Widget _highlight(String text) {
+  Widget _highlight(BuildContext context, String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F8F3),
+        color: isDark
+            ? AppColors.mintGreen.withValues(alpha: 0.15)
+            : const Color(0xFFE8F8F3),
         borderRadius: BorderRadius.circular(8),
         border: const Border(left: BorderSide(color: AppColors.mintGreen, width: 4)),
       ),
       child: Text(text,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF2A6048), fontWeight: FontWeight.w600, height: 1.6)),
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? AppColors.mintGreen : const Color(0xFF2A6048),
+            fontWeight: FontWeight.w600,
+            height: 1.6,
+          )),
     );
   }
 
-  Widget _contactBox() {
+  Widget _contactBox(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final surfaceVariant = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F0),
+        color: surfaceVariant,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('문의', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A))),
-          SizedBox(height: 8),
-          Text('개발자: KJMoon', style: TextStyle(fontSize: 14, color: Color(0xFF444444))),
-          SizedBox(height: 2),
-          Text('이메일: kjmoon@cafevibe.app', style: TextStyle(fontSize: 14, color: Color(0xFF444444))),
+          Text('문의', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: onSurface)),
+          const SizedBox(height: 8),
+          Text('개발자: KJMoon', style: TextStyle(fontSize: 14, color: onSurface.withValues(alpha: 0.8))),
+          const SizedBox(height: 2),
+          Text('이메일: kjmoon@cafevibe.app', style: TextStyle(fontSize: 14, color: onSurface.withValues(alpha: 0.8))),
         ],
       ),
     );
@@ -3163,6 +3172,8 @@ class _OpenSourceLicensePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final surfaceVariant = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Scaffold(
       appBar: AppBar(
         title: const Text('오픈소스 라이선스'),
@@ -3176,9 +3187,9 @@ class _OpenSourceLicensePage extends StatelessWidget {
             width: double.infinity,
             color: AppColors.mintGreen.withValues(alpha: 0.08),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            child: const Text(
+            child: Text(
               'Cafe Vibe는 아래 오픈소스 패키지를 사용하며,\n각 패키지의 라이선스를 준수합니다.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF444444), height: 1.5),
+              style: TextStyle(fontSize: 13, color: onSurface.withValues(alpha: 0.75), height: 1.5),
             ),
           ),
           Expanded(
@@ -3192,18 +3203,18 @@ class _OpenSourceLicensePage extends StatelessWidget {
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                   title: Text(pkg.name,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A))),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: onSurface)),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(pkg.description,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF666666))),
+                        style: TextStyle(fontSize: 13, color: onSurface.withValues(alpha: 0.65))),
                   ),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: badgeColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+                      border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
                     ),
                     child: Text(pkg.license,
                         style: TextStyle(
@@ -3216,10 +3227,10 @@ class _OpenSourceLicensePage extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            color: const Color(0xFFF5F5F5),
-            child: const Text(
+            color: surfaceVariant,
+            child: Text(
               '© 2026 Cafe Vibe. All rights reserved.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF999999)),
+              style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.45)),
               textAlign: TextAlign.center,
             ),
           ),
