@@ -943,7 +943,7 @@ class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 14),
@@ -952,7 +952,9 @@ class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
           const SizedBox(height: 4),
           Text(
             'JPG · PNG · WebP  |  최대 5MB  |  1200px 이하 권장',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 10),
           Padding(
@@ -965,7 +967,8 @@ class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline),
                 ),
               ),
               onChanged: (v) =>
@@ -1019,8 +1022,7 @@ class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
                                               Text(s.formattedAddress!,
                                                   style: TextStyle(
                                                       fontSize: 12,
-                                                      color: Colors
-                                                          .grey.shade600)),
+                                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                                             const SizedBox(height: 2),
                                             Row(children: [
                                               Icon(
@@ -1031,7 +1033,7 @@ class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
                                                 size: 13,
                                                 color: s.photoUrl != null
                                                     ? Colors.green
-                                                    : Colors.grey.shade400,
+                                                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                                               ),
                                               const SizedBox(width: 4),
                                               Text(
@@ -1042,8 +1044,7 @@ class _AdminPhotoSheetState extends State<_AdminPhotoSheet> {
                                                   fontSize: 11,
                                                   color: s.photoUrl != null
                                                       ? Colors.green
-                                                      : Colors
-                                                          .grey.shade400,
+                                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                                                 ),
                                               ),
                                             ]),
@@ -1494,7 +1495,7 @@ class _AdminRequestsSheetState extends State<_AdminRequestsSheet> {
       builder: (_, ctrl) => Column(
         children: [
           const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
           const Text('카페 등록/삭제 요청 목록', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
@@ -1553,10 +1554,10 @@ class _AdminRequestsSheetState extends State<_AdminRequestsSheet> {
                               ],
                             ),
                             if (r.address != null && r.address!.isNotEmpty)
-                              Text(r.address!, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                              Text(r.address!, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                             if (displayNote != null && displayNote.isNotEmpty)
-                              Text('메모: $displayNote', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                            Text(r.createdAt.toLocal().toString().substring(0, 16), style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                              Text('메모: $displayNote', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
+                            Text(r.createdAt.toLocal().toString().substring(0, 16), style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
                             const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
@@ -1851,7 +1852,7 @@ class _AdminSpotsSheetState extends ConsumerState<_AdminSpotsSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 16),
@@ -1870,7 +1871,8 @@ class _AdminSpotsSheetState extends ConsumerState<_AdminSpotsSheet> {
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline),
                 ),
               ),
               onChanged: (_) => _refresh(),
@@ -1914,16 +1916,18 @@ class _AdminSpotsSheetState extends ConsumerState<_AdminSpotsSheet> {
                               Text(s.formattedAddress!,
                                   style: TextStyle(
                                       fontSize: 13,
-                                      color: Colors.grey.shade600)),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                             Text(
                               '${s.lat.toStringAsFixed(5)}, ${s.lng.toStringAsFixed(5)}',
                               style: TextStyle(
-                                  fontSize: 12, color: Colors.grey.shade500),
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
                             ),
                             Text(
                               '측정 ${s.reportCount}건 · ${s.createdAt.toLocal().toString().substring(0, 10)}',
                               style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade400),
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
                             ),
                             const SizedBox(height: 8),
                             Row(
@@ -2071,7 +2075,7 @@ class _AdminCafeRegisterSheetState extends State<_AdminCafeRegisterSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: Theme.of(context).colorScheme.outlineVariant,
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
@@ -2250,7 +2254,6 @@ class _CafeRequestSheetState extends State<_CafeRequestSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottom),
@@ -2266,7 +2269,7 @@ class _CafeRequestSheetState extends State<_CafeRequestSheet> {
             child: Container(
               width: 40, height: 4,
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -2429,7 +2432,6 @@ class _SuggestionSheetState extends State<_SuggestionSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottom),
@@ -2445,7 +2447,7 @@ class _SuggestionSheetState extends State<_SuggestionSheet> {
             child: Container(
               width: 40, height: 4,
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -2530,7 +2532,7 @@ class _AdminSuggestionsSheetState extends State<_AdminSuggestionsSheet> {
       builder: (_, ctrl) => Column(
         children: [
           const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
           const Text('제안사항 목록', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
@@ -2561,7 +2563,7 @@ class _AdminSuggestionsSheetState extends State<_AdminSuggestionsSheet> {
                             Text(r.note ?? '', style: const TextStyle(fontSize: 14, height: 1.5)),
                             const SizedBox(height: 4),
                             Text(r.createdAt.toLocal().toString().substring(0, 16),
-                                style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4))),
                             const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
