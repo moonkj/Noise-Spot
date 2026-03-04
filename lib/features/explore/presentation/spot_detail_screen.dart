@@ -137,22 +137,27 @@ class _SpotDetailScreenState extends ConsumerState<SpotDetailScreen> {
                 ),
                 actions: [
                   _BookmarkButton(spot: spot),
-                  IconButton(
-                    icon: const Icon(Icons.ios_share_outlined, size: 22),
-                    onPressed: () {
-                      final avgDb = liveAvgDb > 0 ? liveAvgDb : spot.averageDb;
-                      final label = DbClassifier.labelFromDb(avgDb);
-                      final addr = spot.formattedAddress?.isNotEmpty == true
-                          ? '\n📍 ${spot.formattedAddress}'
-                          : '';
-                      Share.share(
-                        '☕ ${spot.name}$addr\n'
-                        '🎵 평균 ${avgDb.toStringAsFixed(1)}dB — $label\n\n'
-                        '카페바이브 앱에서 조용한 카페를 찾아보세요\n'
-                        '#카페바이브 #조용한카페 #소음측정',
-                        subject: '${spot.name} — 카페바이브',
-                      );
-                    },
+                  Builder(
+                    builder: (btnCtx) => IconButton(
+                      icon: const Icon(Icons.ios_share_outlined, size: 22),
+                      onPressed: () async {
+                        final avgDb = liveAvgDb > 0 ? liveAvgDb : spot.averageDb;
+                        final label = DbClassifier.labelFromDb(avgDb);
+                        final addr = spot.formattedAddress?.isNotEmpty == true
+                            ? '\n📍 ${spot.formattedAddress}'
+                            : '';
+                        final box = btnCtx.findRenderObject() as RenderBox?;
+                        await Share.share(
+                          '☕ ${spot.name}$addr\n'
+                          '🎵 평균 ${avgDb.toStringAsFixed(1)}dB — $label\n\n'
+                          '#카페바이브 #조용한카페 #소음측정',
+                          subject: '${spot.name} — 카페바이브',
+                          sharePositionOrigin: box == null
+                              ? null
+                              : box.localToGlobal(Offset.zero) & box.size,
+                        );
+                      },
+                    ),
                   ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
