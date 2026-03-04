@@ -99,12 +99,14 @@ class MapController extends Notifier<MapState> {
           unawaited(_discoverNearbyCafes(lat: center.latitude, lng: center.longitude));
         }
 
-        // Spots query: only if user moved >300m from last load (prevents
-        // constant reloads — and marker flicker — on every camera pan).
+        // Spots query: skip if user hasn't moved >300m AND spots are already
+        // loaded — prevents constant reloads and marker flicker on every pan.
+        // Always reload if spots are empty (first launch, error recovery, etc.)
         final pos = state.userPosition;
         if (pos != null) {
           final cur = LatLng(pos.latitude, pos.longitude);
-          if (_lastLoadPos == null || _distMeters(_lastLoadPos!, cur) > 300) {
+          final moved = _lastLoadPos == null || _distMeters(_lastLoadPos!, cur) > 300;
+          if (moved || state.spots.isEmpty) {
             await _loadSpots(lat: pos.latitude, lng: pos.longitude);
           }
         }
