@@ -215,6 +215,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // Top search bar
           _SearchBar(
             onPlaceSelected: _onPlaceSelected,
+            onLocalSpotSelected: _onLocalSpotSelected,
             userLat: mapState.userPosition?.latitude,
             userLng: mapState.userPosition?.longitude,
           ),
@@ -519,6 +520,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
   }
 
+  /// DB에 이미 등록된 카페를 검색창에서 선택했을 때 호출.
+  /// 카메라 이동 + SpotInfoCard 표시 (API 호출 없음).
+  void _onLocalSpotSelected(SpotModel spot) {
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(spot.lat, spot.lng), 16),
+    );
+    setState(() {
+      _selectedSpot = spot;
+      _searchPrediction = null;
+      _searchLatLng = null;
+      _searchMarker = null;
+    });
+  }
+
   /// Navigate to report screen for a search-selected place.
   /// Checks if the spot already exists in DB (via google_place_id).
   Future<void> _onMeasureSearchedPlace() async {
@@ -703,11 +718,13 @@ class _SearchPlaceCard extends StatelessWidget {
 
 class _SearchBar extends ConsumerStatefulWidget {
   final void Function(PlacePrediction prediction, PlaceLatLng latLng) onPlaceSelected;
+  final void Function(SpotModel spot) onLocalSpotSelected;
   final double? userLat;
   final double? userLng;
 
   const _SearchBar({
     required this.onPlaceSelected,
+    required this.onLocalSpotSelected,
     this.userLat,
     this.userLng,
   });
@@ -721,6 +738,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
   final _focusNode = FocusNode();
   Timer? _debounce;
   List<PlacePrediction> _suggestions = [];
+  List<SpotModel> _localSpots = [];
 
   @override
   void dispose() {
@@ -733,9 +751,18 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
   void _onChanged(String value) {
     _debounce?.cancel();
     if (value.trim().isEmpty) {
-      setState(() => _suggestions = []);
+      setState(() { _suggestions = []; _localSpots = []; });
       return;
     }
+    // 로컬 DB 스팟 즉시 필터 (캐시된 데이터 — 네트워크 불필요)
+    final q = value.trim().toLowerCase();
+    final all = ref.read(mapControllerProvider).spots;
+    setState(() {
+      _localSpots = all
+          .where((s) => s.name.toLowerCase().contains(q))
+          .take(8)
+          .toList();
+    });
     _debounce = Timer(const Duration(milliseconds: 350), () => _fetchSuggestions(value));
   }
 
@@ -760,7 +787,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
 
   void _clear() {
     _controller.clear();
-    setState(() => _suggestions = []);
+    setState(() { _suggestions = []; _localSpots = []; });
   }
 
   @override
@@ -808,8 +835,8 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
               ),
             ),
           ),
-          // Autocomplete dropdown
-          if (_suggestions.isNotEmpty)
+          // Autocomplete dropdown — 로컬 DB 스팟 + Google Places API
+          if (_suggestions.isNotEmpty || _localSpots.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(top: 4),
               decoration: BoxDecoration(
@@ -823,40 +850,92 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                   ),
                 ],
               ),
-              constraints: const BoxConstraints(maxHeight: 240),
+              constraints: const BoxConstraints(maxHeight: 320),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: ListView.separated(
+                child: ListView(
                   shrinkWrap: true,
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  itemCount: _suggestions.length,
-                  separatorBuilder: (context, _) =>
-                      const Divider(height: 1, color: AppColors.divider),
-                  itemBuilder: (_, i) {
-                    final p = _suggestions[i];
-                    return ListTile(
-                      dense: true,
-                      leading: const Icon(
-                        Icons.place_rounded,
-                        color: AppColors.mintGreen,
-                        size: 18,
+                  children: [
+                    // ── 등록된 카페 (로컬 DB) ───────────────────────
+                    if (_localSpots.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        child: Text(
+                          '등록된 카페',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textHint,
+                          ),
+                        ),
                       ),
-                      title: Text(
-                        p.mainText,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ..._localSpots.map((spot) => ListTile(
+                        dense: true,
+                        leading: const Icon(
+                          Icons.local_cafe_rounded,
+                          color: AppColors.mintGreen,
+                          size: 18,
+                        ),
+                        title: Text(
+                          spot.name,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: spot.formattedAddress != null
+                            ? Text(
+                                spot.formattedAddress!,
+                                style: const TextStyle(fontSize: 12, color: AppColors.textHint),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : null,
+                        onTap: () {
+                          _controller.text = spot.name;
+                          _focusNode.unfocus();
+                          setState(() { _suggestions = []; _localSpots = []; });
+                          widget.onLocalSpotSelected(spot);
+                        },
+                      )),
+                    ],
+                    // ── 장소 검색 (Google Places) ────────────────────
+                    if (_suggestions.isNotEmpty) ...[
+                      if (_localSpots.isNotEmpty)
+                        const Divider(height: 1, color: AppColors.divider),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        child: Text(
+                          '장소 검색',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textHint,
+                          ),
+                        ),
                       ),
-                      subtitle: p.secondaryText.isNotEmpty
-                          ? Text(
-                              p.secondaryText,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textHint,
-                              ),
-                            )
-                          : null,
-                      onTap: () => _selectPrediction(p),
-                    );
-                  },
+                      ..._suggestions.map((p) => ListTile(
+                        dense: true,
+                        leading: const Icon(
+                          Icons.place_rounded,
+                          color: AppColors.skyBlue,
+                          size: 18,
+                        ),
+                        title: Text(
+                          p.mainText,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: p.secondaryText.isNotEmpty
+                            ? Text(
+                                p.secondaryText,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textHint,
+                                ),
+                              )
+                            : null,
+                        onTap: () => _selectPrediction(p),
+                      )),
+                    ],
+                  ],
                 ),
               ),
             ),

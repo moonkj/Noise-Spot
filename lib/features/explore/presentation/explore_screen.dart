@@ -10,8 +10,9 @@ import '../../../features/map/domain/spot_model.dart';
 
 // ──────────────────────────────────────────────────────────────
 // Provider: 내 주변 3km 카페 목록 (자동 탐색)
+// keepAlive — 탭 전환 시 데이터 유지, RefreshIndicator로만 갱신
 // ──────────────────────────────────────────────────────────────
-final _nearbySpotsProvider = FutureProvider.autoDispose<List<SpotModel>>((ref) async {
+final _nearbySpotsProvider = FutureProvider<List<SpotModel>>((ref) async {
   final position = await ref.watch(currentPositionProvider.future);
   return ref.read(spotsRepositoryProvider).getSpotsNear(
     lat: position.latitude,
@@ -36,15 +37,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   StickerType? _activeFilter; // null = 전체
   _SortMode _sortMode = _SortMode.nearest;
   String _searchQuery = '';
-
-  @override
-  void initState() {
-    super.initState();
-    // 탭 진입마다 위치 + 카페 목록 새로고침
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.invalidate(currentPositionProvider);
-    });
-  }
 
   List<SpotModel> _applyFilter(List<SpotModel> spots) {
     var filtered = _activeFilter == null
