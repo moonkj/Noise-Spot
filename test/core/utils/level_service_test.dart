@@ -558,6 +558,30 @@ void main() {
       badge.copyWith(unlocked: true);
       expect(badge.unlocked, isFalse);
     });
+
+    test('인자 없이 copyWith() → 원래 unlocked 값 그대로 유지', () {
+      const locked = BadgeInfo(
+        id: 'B99',
+        emoji: '🔒',
+        label: '잠금',
+        condition: '테스트용',
+        xpReward: 0,
+        category: BadgeCategory.firstExperience,
+        unlocked: false,
+      );
+      expect(locked.copyWith().unlocked, isFalse);
+
+      const unlocked = BadgeInfo(
+        id: 'B99',
+        emoji: '🔓',
+        label: '해제',
+        condition: '테스트용',
+        xpReward: 0,
+        category: BadgeCategory.firstExperience,
+        unlocked: true,
+      );
+      expect(unlocked.copyWith().unlocked, isTrue);
+    });
   });
 
   // ── BadgeStats.empty() ────────────────────────────────────

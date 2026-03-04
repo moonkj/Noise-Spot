@@ -56,6 +56,11 @@ void main() {
       expect(result.length, 10);
     });
 
+    test('2개 원소(length < 3) → 그대로 반환', () {
+      final result = NoiseFilter.filterOutliers([40.0, 80.0]);
+      expect(result, [40.0, 80.0]);
+    });
+
     test('원본 리스트는 변경하지 않는다', () {
       final original = [40.0, 50.0, 60.0, 200.0];
       NoiseFilter.filterOutliers(original);

@@ -226,6 +226,49 @@ void main() {
     });
   });
 
+  // ── SpotModel.photoUrl ────────────────────────────────────
+  group('SpotModel — photoUrl 파싱', () {
+    test('photo_url 값이 있을 때 저장', () {
+      final json = _baseJson();
+      json['photo_url'] = 'https://example.com/photo.jpg';
+      final spot = SpotModel.fromJson(json);
+      expect(spot.photoUrl, 'https://example.com/photo.jpg');
+    });
+
+    test('photo_url 키 없을 때 null', () {
+      final spot = SpotModel.fromJson(_baseJson());
+      expect(spot.photoUrl, isNull);
+    });
+  });
+
+  // ── SpotModel == / hashCode ───────────────────────────────
+  group('SpotModel.operator== / hashCode', () {
+    test('같은 id → 동등', () {
+      final a = SpotModel.fromJson(_baseJson(id: 'spot-eq'));
+      final b = SpotModel.fromJson(_baseJson(id: 'spot-eq', averageDb: 99.0));
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('다른 id → 비동등', () {
+      final a = SpotModel.fromJson(_baseJson(id: 'spot-a'));
+      final b = SpotModel.fromJson(_baseJson(id: 'spot-b'));
+      expect(a, isNot(equals(b)));
+    });
+
+    test('identical → 동등', () {
+      final a = SpotModel.fromJson(_baseJson());
+      // ignore: unrelated_type_equality_checks
+      expect(a == a, isTrue);
+    });
+
+    test('non-SpotModel 타입과 비교 → false', () {
+      final a = SpotModel.fromJson(_baseJson());
+      // ignore: unrelated_type_equality_checks
+      expect(a == 'other', isFalse);
+    });
+  });
+
   group('StickerTypeX.fromKey — 문자열 → enum 변환', () {
     test('대소문자 구분 없이 파싱', () {
       expect(StickerTypeX.fromKey('study'), StickerType.study);
