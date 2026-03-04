@@ -1693,6 +1693,26 @@ class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
                       final lat = double.tryParse(latCtrl.text.trim());
                       final lng = double.tryParse(lngCtrl.text.trim());
                       if (name.isEmpty || lat == null || lng == null) return;
+                      // 2차 확인
+                      final ok = await showDialog<bool>(
+                        context: dialogCtx,
+                        builder: (c2) => AlertDialog(
+                          title: const Text('수정 확인'),
+                          content: Text('"$name" 정보를 저장하시겠습니까?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c2, false),
+                              child: const Text('취소'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(c2, true),
+                              child: const Text('저장',
+                                  style: TextStyle(color: AppColors.mintGreen)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok != true) return;
                       setSt(() => loading = true);
                       try {
                         await widget.spotsRepo.updateSpot(
@@ -1728,6 +1748,7 @@ class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
   }
 
   Future<void> _deleteSpot(BuildContext context, AdminSpot spot) async {
+    // 1차 확인
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -1747,6 +1768,27 @@ class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
       ),
     );
     if (confirmed != true) return;
+    // 2차 확인
+    if (!context.mounted) return;
+    final doubleConfirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('정말 삭제하시겠습니까?'),
+        content: Text('${spot.reportCount}건의 측정 데이터가 영구 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('영구 삭제',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (doubleConfirmed != true) return;
     try {
       await widget.spotsRepo.deleteSpot(spot.id);
       _refresh();
