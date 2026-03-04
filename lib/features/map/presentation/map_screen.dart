@@ -116,7 +116,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false, // 키보드 표시 시 지도 밀림 방지
-      body: Stack(
+      body: MediaQuery(
+        // 키보드 insets를 0으로 덮어써서 자식 위젯이 키보드를 인지하지 못하게 함
+        data: MediaQuery.of(context).copyWith(viewInsets: EdgeInsets.zero),
+        child: Stack(
         children: [
           // Google Map
           GoogleMap(
@@ -343,6 +346,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
 
         ],
+        ),
       ),
     );
   }

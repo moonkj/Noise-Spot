@@ -75,16 +75,19 @@
       Cafe Vibe(이하 "앱")은 카페의 소음 수준과 분위기를 기록·공유하는 iOS 앱입니다.
       본 방침은 앱이 수집하는 정보, 사용 목적, 보관 기간 및 사용자 권리를 설명합니다.
     </p>
-    <p>시행일: 2026년 2월 27일</p>
+    <p>시행일: 2026년 3월 4일</p>
   </section>
 
   <section>
     <h2>2. 수집하는 정보</h2>
     <ul>
-      <li><strong>소음 수치(dB)</strong> — 마이크로 측정한 데시벨 숫자만 저장됩니다.</li>
+      <li><strong>소음 수치(dB)</strong> — 마이크로 측정한 데시벨 숫자만 저장됩니다. 음성 파일은 절대 저장되지 않습니다.</li>
       <li><strong>위치 정보</strong> — 앱 사용 중(When In Use)에만 현재 위치를 수집합니다.</li>
-      <li><strong>익명 사용자 ID</strong> — 로그인 없이 자동 발급되는 익명 식별자입니다. 개인 신원과 연결되지 않습니다.</li>
-      <li><strong>스티커 선택값</strong> — STUDY / MEETING / RELAX 중 선택한 항목이 저장됩니다.</li>
+      <li><strong>소셜 로그인 계정 정보</strong> — Apple 또는 Google 계정으로 로그인 시 이름과 이메일 주소가 수집됩니다. (Apple 로그인은 이메일 숨기기 옵션을 지원합니다.)</li>
+      <li><strong>닉네임</strong> — 사용자가 직접 설정한 닉네임이 저장됩니다.</li>
+      <li><strong>스티커 선택값</strong> — 딥포커스 / 소셜버즈 / 소프트바이브 중 선택한 항목이 저장됩니다.</li>
+      <li><strong>즐겨찾기(북마크)</strong> — 사용자가 저장한 카페 목록이 서버에 저장됩니다.</li>
+      <li><strong>뱃지·레벨 데이터</strong> — 측정 횟수를 기반으로 자동 산출되는 활동 지표입니다.</li>
     </ul>
     <div class="highlight">
       음성 녹음 파일은 절대 저장·전송되지 않습니다.<br>
@@ -96,41 +99,52 @@
     <h2>3. 수집하지 않는 정보</h2>
     <ul>
       <li>음성 녹음 파일 또는 오디오 스트림</li>
-      <li>연락처, 사진, 기타 민감 정보</li>
-      <li>광고 식별자(IDFA) — 추적 허용 시에도 광고 목적으로 사용하지 않습니다.</li>
+      <li>연락처, 기기 사진첩, 기타 민감 정보</li>
+      <li>광고 식별자(IDFA) — 앱 추적 투명성(ATT) 허용 시에도 광고 목적으로 사용하지 않습니다.</li>
     </ul>
   </section>
 
   <section>
-    <h2>4. 정보 이용 목적</h2>
+    <h2>4. 앱 추적 투명성(ATT)</h2>
+    <p>
+      iOS 14.5 이상에서 앱 최초 실행 시 "앱 추적 투명성" 권한을 요청합니다.
+      이 권한은 광고 목적이 아닌 서비스 품질 개선(충돌 분석 등)을 위해 요청됩니다.
+      허용하지 않아도 앱의 모든 기능을 정상적으로 이용할 수 있습니다.
+    </p>
+  </section>
+
+  <section>
+    <h2>5. 정보 이용 목적</h2>
     <ul>
       <li>주변 스팟의 소음 평균 데이터 산출 및 지도 표시</li>
       <li>사용자별 리포팅 기록 및 통계 제공</li>
       <li>신뢰도 등급(Trust Score) 계산</li>
+      <li>닉네임·뱃지 기반 커뮤니티 활동 지원</li>
     </ul>
   </section>
 
   <section>
-    <h2>5. 제3자 제공</h2>
+    <h2>6. 제3자 제공</h2>
     <p>수집된 정보는 원칙적으로 제3자에게 제공되지 않습니다. 단, 서비스 운영에 필요한 아래 제3자 서비스를 이용합니다.</p>
     <ul>
       <li><strong>Supabase</strong> — 데이터베이스 및 인증 (AWS ap-northeast-2 서울 리전)</li>
-      <li><strong>Google Maps Platform</strong> — 지도 표시</li>
-      <li><strong>Google Maps Platform</strong> — 지도 표시 (위치 정보 전송)</li>
+      <li><strong>Apple (Sign in with Apple)</strong> — 소셜 로그인 인증</li>
+      <li><strong>Google (Sign in with Google)</strong> — 소셜 로그인 인증</li>
+      <li><strong>Google Maps Platform</strong> — 지도 표시 및 장소 검색 (위치 정보 전송)</li>
     </ul>
   </section>
 
   <section>
-    <h2>6. 보관 기간</h2>
+    <h2>7. 보관 기간</h2>
     <ul>
       <li>소음 리포트 데이터: 마지막 활동일로부터 <strong>30일</strong> 이후 지도에서 비표시</li>
-      <li>회원 탈퇴 시: 모든 리포트 데이터 즉시 삭제</li>
+      <li>계정 삭제 시: 모든 리포트·북마크·닉네임·뱃지 데이터 즉시 삭제</li>
       <li>위치 정보: 앱 세션 종료 시 미저장</li>
     </ul>
   </section>
 
   <section>
-    <h2>7. 사용자 권리</h2>
+    <h2>8. 사용자 권리</h2>
     <ul>
       <li><strong>데이터 열람</strong> — 앱 내 마이페이지에서 본인의 측정 기록 확인 가능</li>
       <li><strong>데이터 삭제</strong> — 앱 설정 → "계정 삭제"로 모든 데이터 즉시 삭제</li>
@@ -140,7 +154,7 @@
   </section>
 
   <section>
-    <h2>8. 어린이 개인정보 보호</h2>
+    <h2>9. 어린이 개인정보 보호</h2>
     <p>
       본 앱은 만 14세 미만 아동을 대상으로 하지 않습니다.
       만 14세 미만은 보호자의 동의 없이 앱을 사용하지 않도록 안내합니다.
@@ -148,7 +162,7 @@
   </section>
 
   <section>
-    <h2>9. 방침 변경</h2>
+    <h2>10. 방침 변경</h2>
     <p>
       본 방침이 변경될 경우 앱 업데이트 또는 공지사항을 통해 사전 안내합니다.
       변경 방침은 공지일로부터 7일 후 적용됩니다.
@@ -156,7 +170,7 @@
   </section>
 
   <section>
-    <h2>10. 문의</h2>
+    <h2>11. 문의</h2>
     <div class="contact">
       <p>개인정보 처리에 관한 문의사항이 있으시면 아래로 연락주세요.</p>
       <p style="margin-top:10px;">

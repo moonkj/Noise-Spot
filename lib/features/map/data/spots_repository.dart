@@ -189,6 +189,19 @@ class SpotsRepository {
         .toList();
   }
 
+  /// Fetch ALL spots for admin full management. Optional [query] filters by name.
+  Future<List<AdminSpot>> fetchAllSpots({String? query}) async {
+    final data = await _client.rpc(
+      'get_all_spots_admin',
+      params: {
+        if (query != null && query.isNotEmpty) 'search_query': query,
+      },
+    );
+    return (data as List)
+        .map((e) => AdminSpot.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Update a spot's name, address, and/or location.
   Future<void> updateSpot(
     String id, {

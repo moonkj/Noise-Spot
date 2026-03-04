@@ -295,10 +295,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ),
                   _SettingsTile(
                     icon: Icons.store_outlined,
-                    title: '등록된 카페 관리',
-                    subtitle: '직접 등록한 카페 수정 / 삭제',
+                    title: '전체 카페 관리',
+                    subtitle: '모든 카페 검색·수정·삭제',
                     showArrow: true,
                     onTap: () => _showAdminSpotsSheet(context),
+                  ),
+                  _SettingsTile(
+                    icon: Icons.add_business_outlined,
+                    title: '카페 신규 등록',
+                    subtitle: '이름·주소·좌표로 임의 위치 카페 등록',
+                    showArrow: true,
+                    onTap: () => _showAdminCafeRegisterSheet(context),
                   ),
                   _SettingsTile(
                     icon: Icons.add_photo_alternate_outlined,
@@ -610,6 +617,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => _AdminSpotsSheet(
+        spotsRepo: ref.read(spotsRepositoryProvider),
+        placesService: ref.read(placesServiceProvider),
+      ),
+    );
+  }
+
+  void _showAdminCafeRegisterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AdminCafeRegisterSheet(
         spotsRepo: ref.read(spotsRepositoryProvider),
         placesService: ref.read(placesServiceProvider),
       ),
@@ -1551,14 +1572,25 @@ class _AdminSpotsSheet extends StatefulWidget {
 
 class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
   late Future<List<AdminSpot>> _future;
+  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _future = widget.spotsRepo.fetchManualSpots();
+    _future = widget.spotsRepo.fetchAllSpots();
   }
 
-  void _refresh() => setState(() => _future = widget.spotsRepo.fetchManualSpots());
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _refresh() => setState(
+        () => _future = widget.spotsRepo.fetchAllSpots(
+          query: _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim(),
+        ),
+      );
 
   Future<void> _editSpot(BuildContext context, AdminSpot spot) async {
     final nameCtrl = TextEditingController(text: spot.name);
@@ -1743,8 +1775,27 @@ class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
                 borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 16),
-          const Text('등록된 카페 관리',
+          const Text('전체 카페 관리',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: '카페 이름 검색',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+              onChanged: (_) => _refresh(),
+            ),
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: FutureBuilder<List<AdminSpot>>(
@@ -1756,7 +1807,7 @@ class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
                 final list = snap.data ?? [];
                 if (list.isEmpty) {
                   return const Center(
-                    child: Text('직접 등록한 카페가 없습니다.',
+                    child: Text('검색 결과가 없습니다.',
                         style: TextStyle(color: Colors.grey)),
                   );
                 }
@@ -1823,6 +1874,234 @@ class _AdminSpotsSheetState extends State<_AdminSpotsSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── 관리자: 카페 신규 등록 바텀시트 ───────────────────────────────
+class _AdminCafeRegisterSheet extends StatefulWidget {
+  final SpotsRepository spotsRepo;
+  final PlacesService placesService;
+  const _AdminCafeRegisterSheet(
+      {required this.spotsRepo, required this.placesService});
+
+  @override
+  State<_AdminCafeRegisterSheet> createState() =>
+      _AdminCafeRegisterSheetState();
+}
+
+class _AdminCafeRegisterSheetState extends State<_AdminCafeRegisterSheet> {
+  final _nameCtrl = TextEditingController();
+  final _addrCtrl = TextEditingController();
+  final _latCtrl = TextEditingController();
+  final _lngCtrl = TextEditingController();
+  bool _loading = false;
+  bool _geocoding = false;
+  bool _locating = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _addrCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() => _locating = true);
+    try {
+      final pos = await LocationService.getCurrentPosition();
+      _latCtrl.text = pos.latitude.toStringAsFixed(6);
+      _lngCtrl.text = pos.longitude.toStringAsFixed(6);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('위치 오류: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _geocodeAddr() async {
+    final addr = _addrCtrl.text.trim();
+    if (addr.isEmpty) return;
+    setState(() => _geocoding = true);
+    final result = await widget.placesService.geocodeAddress(addr);
+    setState(() => _geocoding = false);
+    if (result != null) {
+      _latCtrl.text = result.lat.toStringAsFixed(6);
+      _lngCtrl.text = result.lng.toStringAsFixed(6);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('주소로 좌표를 찾을 수 없습니다')),
+      );
+    }
+  }
+
+  Future<void> _register() async {
+    final name = _nameCtrl.text.trim();
+    final lat = double.tryParse(_latCtrl.text.trim());
+    final lng = double.tryParse(_lngCtrl.text.trim());
+    if (name.isEmpty || lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이름, 위도, 경도는 필수입니다')),
+      );
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await widget.spotsRepo.createSpot(
+        name: name,
+        googlePlaceId: null,
+        lat: lat,
+        lng: lng,
+        formattedAddress:
+            _addrCtrl.text.trim().isEmpty ? null : _addrCtrl.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('카페가 등록되었습니다')),
+        );
+      }
+    } catch (e) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('등록 실패: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Center(
+              child: Text('카페 신규 등록',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                labelText: '카페 이름 *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _addrCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '주소',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _geocoding
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : TextButton(
+                        onPressed: _geocodeAddr,
+                        child: const Text('자동',
+                            style: TextStyle(
+                                color: AppColors.mintGreen, fontSize: 13)),
+                      ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _latCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '위도 *',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true, signed: true),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _lngCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '경도 *',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true, signed: true),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _locating ? null : _useCurrentLocation,
+              icon: _locating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location, size: 18,
+                      color: AppColors.mintGreen),
+              label: const Text('현재 위치 사용',
+                  style: TextStyle(color: AppColors.mintGreen)),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _register,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.mintGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('등록',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
