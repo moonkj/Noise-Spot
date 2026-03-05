@@ -1,6 +1,6 @@
 # Cafe Vibe — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-03-05 (Phase 36 완료 ✅ — 계정삭제 RPC, Places New API 전환, 비카페 필터링, 관리자 이름수정, flutter analyze 0 issues)
+마지막 업데이트: 2026-03-05 (Phase 36 완료 ✅ — 계정삭제 RPC, Places New API 전환, 비카페 필터링, 관리자 이름수정, 더미스팟 사진 로드, flutter analyze 0 issues)
 
 ---
 
@@ -39,7 +39,7 @@ Phase 30: 보안/버그/성능 강화  ████████████ 100%
 Phase 32-33: App Store 준비   ████████████ 100% ✅ (ATT ✅, 계정삭제 명확화 ✅, 에러배너 ✅, 탐색탭 개선 ✅, terms-of-service.html ✅)
 Phase 34: 법적문서·관리자 강화  ████████████ 100% ✅ (privacy-policy 재작성 ✅, 전체카페관리 ✅, 신규등록폼 ✅, 키보드버그 완전 수정 ✅)
 Phase 35: 보안/안정성/성능      ████████████ 100% ✅ (SQL 보안 강화 ✅, 마커 비트맵 캐시 전역화 ✅, 병렬 생성 ✅, 좌표 검증 ✅)
-Phase 36: 비카페 필터링·API     ████████████ 100% ✅ (계정삭제 RPC ✅, Places New API ✅, 비카페 필터 ✅, 관리자 이름수정 ✅)
+Phase 36: 비카페 필터링·API     ████████████ 100% ✅ (계정삭제 RPC ✅, Places New API ✅, 비카페 필터 ✅, 관리자 이름수정 ✅, 더미스팟 사진 ✅)
 Phase 13: App Store 준비      ████████░░░░  70% 🔄 (GitHub Pages ✅, IPA 45.8MB ✅, TestFlight ⏳, ASC 정보 ⏳)
 아키텍처: 소셜로그인 필수화     ████████████ 100% ✅ (Apple/Google/Email ✅, SecureLocalStorage ✅, 닉네임 서비스 ✅)
 ```
@@ -73,7 +73,11 @@ Phase 13: App Store 준비      ████████░░░░  70% 🔄 (
 - [x] `settings_screen.dart` `_renameSpot()`: 이름 전용 간단 다이얼로그 (autofocus, 이름 1개 필드)
 - [x] 관리자 스팟 행에 "이름" TextButton 추가 (삭제 | 이름 | 수정)
 
-**결과**: `flutter analyze` 0 issues, 지도/검색에서 비카페 장소 미표시
+#### 더미 스팟 사진 로드
+- [x] `places_service.dart` `getPhotoUrlByTextSearch()`: 이름+좌표 → Places Text Search → 실제 place ID → 사진 URL
+- [x] `spot_detail_screen.dart` `_spotPhotoProvider`: `_PhotoParams` record 타입으로 변경 — `DUMMY:` 접두사 스팟은 Text Search 방식으로 사진 로드, 실제 place ID는 기존 방식 유지
+
+**결과**: `flutter analyze` 0 issues, 지도/검색에서 비카페 장소 미표시, 더미 스팟 상세화면에서 사진 표시
 
 ---
 

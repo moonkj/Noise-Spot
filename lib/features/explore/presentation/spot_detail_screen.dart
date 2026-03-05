@@ -37,14 +37,26 @@ final spotRecentReportsProvider = FutureProvider.autoDispose
       ref.read(reportRepositoryProvider).getSpotRecentReports(spotId, limit: 30),
 );
 
+/// Photo fetch params — used as FutureProvider.family key.
+typedef _PhotoParams = ({
+  String placeId,
+  String name,
+  double lat,
+  double lng,
+});
+
 /// Fetches a photo URL for the given spot.
 /// - Admin-uploaded photos (Supabase Storage URLs) are permanent → use from DB.
 /// - Google Places CDN URLs expire after ~1 day → always fetch fresh from API.
+/// - Dummy spots (placeId starts with "DUMMY:") → Text Search by name+location.
 final _spotPhotoProvider =
-    FutureProvider.autoDispose.family<String?, String>((ref, googlePlaceId) async {
-  // Google Places spots: always fetch a fresh CDN URL.
-  if (googlePlaceId.isEmpty) return null;
-  return ref.read(placesServiceProvider).getPhotoUrl(googlePlaceId);
+    FutureProvider.autoDispose.family<String?, _PhotoParams>((ref, p) async {
+  if (p.placeId.isEmpty) return null;
+  final svc = ref.read(placesServiceProvider);
+  if (p.placeId.startsWith('DUMMY:')) {
+    return svc.getPhotoUrlByTextSearch(p.name, p.lat, p.lng);
+  }
+  return svc.getPhotoUrl(p.placeId);
 });
 
 // ──────────────────────────────────────────────────────────────
@@ -244,8 +256,16 @@ class _HeroBackground extends ConsumerWidget {
     // Google Places CDN URLs expire — fetch fresh via provider.
     final cachedUrl = spot.photoUrl;
     final isSupabaseUrl = cachedUrl != null && cachedUrl.contains('supabase.co/storage');
-    final googlePhotoUrl = (spot.googlePlaceId != null && !isSupabaseUrl)
-        ? ref.watch(_spotPhotoProvider(spot.googlePlaceId!)).asData?.value
+    final googlePhotoUrl = !isSupabaseUrl
+        ? ref
+            .watch(_spotPhotoProvider((
+              placeId: spot.googlePlaceId ?? '',
+              name: spot.name,
+              lat: spot.lat,
+              lng: spot.lng,
+            )))
+            .asData
+            ?.value
         : null;
     final photoUrl = isSupabaseUrl ? cachedUrl : googlePhotoUrl;
 

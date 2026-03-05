@@ -279,6 +279,53 @@ class PlacesService {
     }
   }
 
+  /// Finds the best-matching Place ID for [name] near [lat]/[lng] using
+  /// Places (New) Text Search, then returns its photo URL.
+  /// Used for dummy spots that lack a real Google Place ID.
+  Future<String?> getPhotoUrlByTextSearch(
+    String name,
+    double lat,
+    double lng, {
+    int maxWidth = 600,
+  }) async {
+    if (_mapsApiKey.isEmpty || name.isEmpty) return null;
+    try {
+      final uri = Uri.https('places.googleapis.com', '/v1/places:searchText');
+      final response = await _client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': _mapsApiKey,
+              'X-Goog-FieldMask': 'places.id',
+            },
+            body: json.encode({
+              'textQuery': name,
+              'locationBias': {
+                'circle': {
+                  'center': {'latitude': lat, 'longitude': lng},
+                  'radius': 300.0,
+                },
+              },
+              'maxResultCount': 1,
+              'languageCode': 'ko',
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return null;
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final places = data['places'] as List<dynamic>?;
+      if (places == null || places.isEmpty) return null;
+      final realPlaceId =
+          (places[0] as Map<String, dynamic>)['id'] as String?;
+      if (realPlaceId == null) return null;
+      return getPhotoUrl(realPlaceId, maxWidth: maxWidth);
+    } catch (e) {
+      debugPrint('[Places] getPhotoUrlByTextSearch error: $e');
+      return null;
+    }
+  }
+
   /// Returns a cacheable CDN photo URL for [placeId] using Google Places (New) API.
   Future<String?> getPhotoUrl(String placeId, {int maxWidth = 600}) async {
     if (_mapsApiKey.isEmpty) return null;
