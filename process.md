@@ -1,6 +1,6 @@
 # Cafe Vibe — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-03-05 (Phase 37 완료 ✅ — iPad 랭킹 화면 수정, iPhone 전용(iPad 제외), 1.0.0+3 ASC 업로드 완료)
+마지막 업데이트: 2026-03-05 (Phase 37 완료 ✅ — iPad 랭킹 화면 수정, iPhone 전용(iPad 제외), 1.0.0+3 ASC 업로드 완료 / 다음: App Store 심사 제출, Android 지원은 심사 통과 후)
 
 ---
 
@@ -2471,3 +2471,20 @@ flutter analyze → No issues found ✅
 iPhone 전용 앱 (iPad 미지원) ✅
 App Store Connect 1.0.0+3 업로드 완료 ✅
 ```
+
+---
+
+### 다음 단계 (Next Steps)
+
+#### App Store 심사 제출
+- [ ] App Store Connect → 빌드 1.0.0+3 처리 완료 확인
+- [ ] 스크린샷 업로드 (iPhone 6.9", 6.5" 필수)
+- [ ] 심사 제출
+
+#### Android 지원 (iOS 심사 통과 후)
+- 하나의 코드베이스로 iOS + Android 동시 지원 가능 (Flutter)
+- 필요 작업:
+  - `onboarding_screen.dart`: Apple 로그인 버튼 `if (Platform.isIOS)` 조건 추가
+  - `att_service.dart` / `map_screen.dart`: ATT 호출 iOS 조건부 처리
+  - `android/app/src/main/AndroidManifest.xml`: Google Maps API 키, 마이크/위치 권한
+  - Android keystore 생성 + Google Play Console 등록
