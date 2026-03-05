@@ -205,6 +205,7 @@ class _EmailAuthScreenState extends ConsumerState<EmailAuthScreen> {
                   _Field(
                     controller: _passwordCtrl,
                     label: '비밀번호',
+                    hint: '영문 대문자·숫자·특수문자 포함 8자 이상',
                     obscure: _obscurePass,
                     textInputAction:
                         isLogin ? TextInputAction.done : TextInputAction.next,
@@ -328,6 +329,7 @@ class _EmailAuthScreenState extends ConsumerState<EmailAuthScreen> {
 class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final String? hint;
   final bool obscure;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
@@ -338,6 +340,7 @@ class _Field extends StatelessWidget {
   const _Field({
     required this.controller,
     required this.label,
+    this.hint,
     this.obscure = false,
     this.keyboardType,
     this.textInputAction,
@@ -359,6 +362,8 @@ class _Field extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 13),
         suffixIcon: suffixIcon,
         enabledBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.grey.shade400, width: 1.5),
