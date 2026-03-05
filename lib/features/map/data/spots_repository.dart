@@ -120,6 +120,11 @@ class SpotsRepository {
   /// Upsert brand cafe spots discovered via Places Nearby Search.
   /// Skips spots that already exist (google_place_id UNIQUE constraint).
   /// Returns the number of newly inserted spots.
+  /// Upsert brand spots discovered via Google Places API.
+  /// Uses upsert_brand_spots_v2 RPC which:
+  ///  - INSERTs new spots with default stats (0)
+  ///  - ON CONFLICT: updates name/location/address (authoritative from Google)
+  ///                 does NOT touch report_count / average_db / trust_score
   Future<int> upsertBrandSpots(List<PlaceResult> places) async {
     if (places.isEmpty) return 0;
 
@@ -127,21 +132,17 @@ class SpotsRepository {
         .map((p) => {
               'name': p.name,
               'google_place_id': p.placeId,
-              'location': 'POINT(${p.lng} ${p.lat})',
-              'average_db': 0,
-              'report_count': 0,
-              'trust_score': 0,
-              if (p.formattedAddress != null)
-                'formatted_address': p.formattedAddress,
+              'lat': p.lat,
+              'lng': p.lng,
+              'formatted_address': p.formattedAddress,
             })
         .toList();
 
-    final response = await _client
-        .from('spots')
-        .upsert(rows, onConflict: 'google_place_id', ignoreDuplicates: true)
-        .select('id');
-
-    return (response as List).length;
+    final result = await _client.rpc(
+      'upsert_brand_spots_v2',
+      params: {'places': rows},
+    );
+    return (result as int?) ?? 0;
   }
 
   /// Returns the spot ID for a given [placeId], or null if not in DB yet.

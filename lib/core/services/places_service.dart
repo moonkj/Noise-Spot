@@ -287,6 +287,11 @@ class PlacesService {
               as Map<String, dynamic>?;
           if (geo == null) continue;
 
+          // types 필터: 실제 음식/음료 업종만 포함 (세탁소·미용실 등 오분류 제외)
+          final types = (r['types'] as List<dynamic>? ?? []).cast<String>();
+          const foodTypes = {'cafe', 'food', 'bakery', 'bar', 'restaurant'};
+          if (!types.any(foodTypes.contains)) continue;
+
           final vicinity = r['vicinity'] as String?;
           all.add(PlaceResult(
             placeId: r['place_id'] as String,
