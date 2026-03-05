@@ -99,18 +99,18 @@ class AuthRepository {
   }
 
   /// Deletes all user data and the auth.users row, then signs out locally.
+  /// Uses delete_my_account_full() SECURITY DEFINER RPC — no Edge Function needed.
   /// Returns true if the server-side account was fully deleted (auth.users removed).
-  /// Returns false if the Edge Function failed — data may be cleaned but account can be re-logged-in.
+  /// Returns false if the RPC failed — account may still exist on the server.
   Future<bool> deleteAccount() async {
     if (_client.auth.currentUser == null) return false;
 
     bool serverDeleted = false;
     try {
-      await _client.functions.invoke('delete-account');
+      await _client.rpc('delete_my_account_full');
       serverDeleted = true;
     } catch (_) {
-      // Edge Function failed — try to at least clean user data via direct RPC.
-      // auth.users row NOT deleted: user can still sign back in with the same credentials.
+      // RPC failed — try legacy data-only cleanup (auth.users NOT deleted).
       try {
         await _client.rpc('delete_my_account_data');
       } catch (_) {}
