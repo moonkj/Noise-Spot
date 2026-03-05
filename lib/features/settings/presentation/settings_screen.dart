@@ -754,8 +754,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               await CalibrationService.resetAll();
               await ReviewService.resetAll();
               // Delete all server-side user data (reports, badges, profile, stats)
-              await ref.read(authRepositoryProvider).deleteAccount();
-              if (context.mounted) context.go('/onboarding');
+              final deleted = await ref.read(authRepositoryProvider).deleteAccount();
+              if (!context.mounted) return;
+              if (!deleted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('서버 계정 삭제에 실패했습니다. 동일 계정으로 재로그인이 가능합니다. 문제가 지속되면 운영자에게 문의해 주세요.'),
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+              }
+              context.go('/onboarding');
             },
             child: const Text('삭제', style: TextStyle(color: AppColors.dbVeryLoud)),
           ),

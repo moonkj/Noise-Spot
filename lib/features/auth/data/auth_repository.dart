@@ -99,18 +99,18 @@ class AuthRepository {
   }
 
   /// Deletes all user data and the auth.users row, then signs out locally.
-  /// Calls the delete-account Edge Function which:
-  ///   1. Runs delete_my_account_data() RPC (data cleanup)
-  ///   2. Calls admin.deleteUser() via service_role (auth.users deletion)
-  Future<void> deleteAccount() async {
-    if (_client.auth.currentUser == null) return;
+  /// Returns true if the server-side account was fully deleted (auth.users removed).
+  /// Returns false if the Edge Function failed — data may be cleaned but account can be re-logged-in.
+  Future<bool> deleteAccount() async {
+    if (_client.auth.currentUser == null) return false;
 
-    // Edge Function handles both data + auth.users deletion atomically.
-    // On failure (network / function error), still sign out locally.
+    bool serverDeleted = false;
     try {
       await _client.functions.invoke('delete-account');
+      serverDeleted = true;
     } catch (_) {
-      // Fallback: at minimum, clean local data via RPC
+      // Edge Function failed — try to at least clean user data via direct RPC.
+      // auth.users row NOT deleted: user can still sign back in with the same credentials.
       try {
         await _client.rpc('delete_my_account_data');
       } catch (_) {}
@@ -118,6 +118,7 @@ class AuthRepository {
 
     await _clearLocalPii();
     await _client.auth.signOut();
+    return serverDeleted;
   }
 
   User? get currentUser => _client.auth.currentUser;
