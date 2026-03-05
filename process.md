@@ -1,6 +1,6 @@
 # Cafe Vibe — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-03-05 (Phase 36 완료 ✅ — 계정삭제 RPC, Places New API 전환, 비카페 필터링, 관리자 이름수정, 더미스팟 사진 로드, flutter analyze 0 issues)
+마지막 업데이트: 2026-03-05 (Phase 13 App Store 등록 완료 ✅ — ASC 앱정보·연령등급·데이터수집 등록, IPA 업로드 완료, TestFlight 처리 중)
 
 ---
 
@@ -40,13 +40,42 @@ Phase 32-33: App Store 준비   ████████████ 100% ✅ (A
 Phase 34: 법적문서·관리자 강화  ████████████ 100% ✅ (privacy-policy 재작성 ✅, 전체카페관리 ✅, 신규등록폼 ✅, 키보드버그 완전 수정 ✅)
 Phase 35: 보안/안정성/성능      ████████████ 100% ✅ (SQL 보안 강화 ✅, 마커 비트맵 캐시 전역화 ✅, 병렬 생성 ✅, 좌표 검증 ✅)
 Phase 36: 비카페 필터링·API     ████████████ 100% ✅ (계정삭제 RPC ✅, Places New API ✅, 비카페 필터 ✅, 관리자 이름수정 ✅, 더미스팟 사진 ✅)
-Phase 13: App Store 준비      ████████░░░░  70% 🔄 (GitHub Pages ✅, IPA 45.8MB ✅, TestFlight ⏳, ASC 정보 ⏳)
+Phase 13: App Store 준비      ███████████░  95% 🔄 (GitHub Pages ✅, ASC 앱정보 ✅, 연령등급 4+ ✅, 데이터수집 등록 ✅, IPA 업로드 ✅, 심사제출 ⏳)
 아키텍처: 소셜로그인 필수화     ████████████ 100% ✅ (Apple/Google/Email ✅, SecureLocalStorage ✅, 닉네임 서비스 ✅)
 ```
 
 ---
 
 ## ✅ 완료된 작업
+
+### Phase 13: App Store Connect 등록 (2026-03-05)
+
+#### 앱 정보 등록
+- [x] 앱 이름: `카페바이브 - 나의 근처, Vibe에 맞는 카페 찾기` (29자)
+- [x] 부제: `실시간 분위기 측정 카페 지도`
+- [x] 키워드: 카페,분위기,dB,지도,감성카페,카페찾기,바이브,카페지도,공부카페,집중카페
+- [x] 앱 설명·홍보 문구 ("소음" → "분위기" 전면 교체)
+- [x] 카테고리: Primary 라이프스타일 / Secondary 음식 및 음료
+- [x] 개인정보처리방침 URL: `https://moonkj.github.io/Vibe-cafe/privacy-policy.html`
+- [x] GitHub Pages 활성화 (main branch /docs 루트)
+- [x] 저작권: `© 2026 Kyeongju Moon`
+
+#### 연령 등급
+- [x] 7단계 설문 완료 → **4+** 등급 확정
+
+#### 데이터 수집 등록
+- [x] 수집 항목: 이메일 주소(앱 기능·신원연결), 사용자 ID(앱 기능·신원연결), 위치(앱 기능·비연결)
+- [x] 오디오·광고·추적 데이터 없음 선언
+- [x] 콘텐츠 권한: Google Maps/Places 타사 콘텐츠 표시 확인
+
+#### 빌드 업로드
+- [x] `flutter build ipa --release` → 33.3MB IPA 생성
+- [x] `xcrun altool` 업로드 → **UPLOAD SUCCEEDED** (Delivery UUID: 506e6cbd)
+- [x] App Store Connect TestFlight 처리 중
+
+**다음 단계**: TestFlight 처리 완료 → 스크린샷 업로드 → 심사 제출
+
+---
 
 ### Phase 36: 비카페 필터링 · Places New API · 관리자 강화 (2026-03-05)
 
