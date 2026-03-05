@@ -1,6 +1,6 @@
 # Cafe Vibe — 개발 진행 현황 (Process Log)
 
-마지막 업데이트: 2026-03-05 (Phase 13 App Store 등록 완료 ✅ — ASC 앱정보·연령등급·데이터수집 등록, IPA 업로드 완료, TestFlight 처리 중)
+마지막 업데이트: 2026-03-05 (Phase 37 완료 ✅ — iPad 랭킹 화면 수정, iPhone 전용(iPad 제외), 1.0.0+3 ASC 업로드 완료)
 
 ---
 
@@ -2437,4 +2437,37 @@ flutter analyze → No issues found ✅
 zoom in 시 마커 정상 표시 (_maxBitmapCacheSize 500) ✅
 내 주변 카페 즉시 표시 (Places API 발견 후 자동 reload) ✅
 카메라 이동 시 마커 깜빡임 없음 (onCameraIdle에서 _loadSpots 제거) ✅
+```
+
+---
+
+### Phase 37: iPad 랭킹 화면 수정 + iPhone 전용 설정 (2026-03-05)
+
+#### 문제
+1. iPad 랭킹 화면 상단 짤림
+2. 랭킹 화면 배경색이 콘텐츠 영역 밖으로 채워지지 않음 (BackdropFilter 컴포지팅 레이어 문제)
+3. 헤더("랭킹" 텍스트+탭) 영역이 별도 상자처럼 보임 (darkBgSurface vs darkBgBase 색상 차이)
+
+#### 수정
+- `_GlassRankCard`: `ClipRRect + BackdropFilter` 제거 → 전체 너비 플랫 행 + 하단 구분선 스타일
+- `_QuietCafeTab`, `_MeasurerTab`, `_WeeklyTab`: `ColoredBox`로 감싸 배경색 직접 적용
+- 헤더 `Container`: `color: darkBgSurface` 제거 → Scaffold 배경과 동일하게 통일
+- `TARGETED_DEVICE_FAMILY`: `"1,2"` → `"1"` (iPhone 전용, iPad 제외)
+- `pubspec.yaml`: `version: 1.0.0+3`
+
+#### 빌드 & 배포
+- `flutter build ipa --release` → IPA 생성
+- `objective_c.framework` 처리:
+  - `lipo -remove x86_64` → arm64 only
+  - `vtool -set-build-version ios 14.0` → IOSSIMULATOR → IOS 플랫폼 변경
+  - `Info.plist MinimumOSVersion 13.0 → 14.0`
+- `xcrun altool --upload-app` → App Store Connect 1.0.0 (3) 업로드 ✅
+
+#### 최종 상태
+```
+flutter analyze → No issues found ✅
+랭킹 화면 배경 전체 채움 ✅
+랭킹 헤더 상자 제거 ✅
+iPhone 전용 앱 (iPad 미지원) ✅
+App Store Connect 1.0.0+3 업로드 완료 ✅
 ```

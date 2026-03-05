@@ -1,7 +1,7 @@
 name: cafe_vibe
 description: "시끄러운 도시 속, 나만의 고요한 카페 찾기"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+3
 
 environment:
   sdk: ^3.11.0

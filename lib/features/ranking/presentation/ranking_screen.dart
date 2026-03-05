@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
@@ -50,7 +49,6 @@ class _RankingScreenState extends ConsumerState<RankingScreen>
         children: [
           Container(
             decoration: BoxDecoration(
-              color: isDark ? AppColors.darkBgSurface : Colors.white,
               border: Border(
                 bottom: BorderSide(
                   color: isDark
@@ -62,7 +60,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen>
             padding: EdgeInsets.only(top: top),
             child: Column(
               children: [
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   AppStrings.rankingTitle,
                   style: TextStyle(
@@ -122,8 +120,11 @@ class _QuietCafeTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final async = ref.watch(quietCafeRankingProvider);
-    return RefreshIndicator(
+    return ColoredBox(
+      color: isDark ? AppColors.darkBgBase : const Color(0xFFF8F6F1),
+      child: RefreshIndicator(
       color: AppColors.mintGreen,
       onRefresh: () async {
         ref.invalidate(quietCafeRankingProvider);
@@ -137,7 +138,7 @@ class _QuietCafeTab extends ConsumerWidget {
             ? const _EmptyRankView()
             : ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.zero,
               itemCount: list.length,
               itemBuilder: (ctx, i) {
                 final item = list[i];
@@ -186,6 +187,7 @@ class _QuietCafeTab extends ConsumerWidget {
               },
             ),
       ),
+    ),
     );
   }
 }
@@ -200,7 +202,9 @@ class _MeasurerTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final async = ref.watch(userRankingProvider);
-    return RefreshIndicator(
+    return ColoredBox(
+      color: isDark ? AppColors.darkBgBase : const Color(0xFFF8F6F1),
+      child: RefreshIndicator(
       color: AppColors.mintGreen,
       onRefresh: () async {
         ref.invalidate(userRankingProvider);
@@ -214,7 +218,7 @@ class _MeasurerTab extends ConsumerWidget {
             ? const _EmptyMeasurerView()
             : ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.zero,
               itemCount: list.length,
               itemBuilder: (ctx, i) {
                 final item = list[i];
@@ -297,6 +301,7 @@ class _MeasurerTab extends ConsumerWidget {
               },
             ),
       ),
+    ),
     );
   }
 }
@@ -309,8 +314,11 @@ class _WeeklyTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final async = ref.watch(weeklyCafeRankingProvider);
-    return RefreshIndicator(
+    return ColoredBox(
+      color: isDark ? AppColors.darkBgBase : const Color(0xFFF8F6F1),
+      child: RefreshIndicator(
       color: AppColors.mintGreen,
       onRefresh: () async {
         ref.invalidate(weeklyCafeRankingProvider);
@@ -324,7 +332,7 @@ class _WeeklyTab extends ConsumerWidget {
             ? const _EmptyRankView()
             : ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.zero,
                 itemCount: list.length,
               itemBuilder: (ctx, i) {
                 final item = list[i];
@@ -380,6 +388,7 @@ class _WeeklyTab extends ConsumerWidget {
               },
             ),
       ),
+    ),
     );
   }
 }
@@ -410,69 +419,47 @@ class _GlassRankCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.white.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.white.withValues(alpha: 0.8),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.2)
-                      : AppColors.mintGreen.withValues(alpha: 0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: isMedal
-                        ? _medalColors[rank - 1].withValues(alpha: 0.18)
-                        : isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : AppColors.mintGreen.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: isMedal
-                        ? const Text('🏅', style: TextStyle(fontSize: 18))
-                        : Text(
-                            '$rank',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: child),
-                trailing,
-              ],
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? AppColors.darkDivider : AppColors.divider,
+            width: 0.5,
           ),
         ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isMedal
+                  ? _medalColors[rank - 1].withValues(alpha: 0.18)
+                  : isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : AppColors.mintGreen.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: isMedal
+                  ? const Text('🏅', style: TextStyle(fontSize: 18))
+                  : Text(
+                      '$rank',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: child),
+          trailing,
+        ],
       ),
     );
   }
